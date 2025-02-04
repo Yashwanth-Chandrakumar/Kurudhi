@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import Stepper from "../components/Stepper"
+import Stepper from "@/components/Stepper"
 
 export default function RequestDonor() {
   const [currentStep, setCurrentStep] = useState(0)
