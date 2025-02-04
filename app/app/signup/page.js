@@ -1,7 +1,7 @@
 "use client"
-
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 export default function SignUp() {
   const [formData, setFormData] = useState({
@@ -10,27 +10,41 @@ export default function SignUp() {
     dob: "",
     email: "",
     password: "",
-  })
-  const router = useRouter()
+  });
+  const [error, setError] = useState("");
+  const router = useRouter();
+  const { signup, googleSignIn } = useAuth();
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value })
-  }
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    // In a real application, you would send this data to your backend
-    console.log("Form submitted:", formData)
-    // Simulate successful signup
-    router.push("/signin")
-  }
+    e.preventDefault();
+    setError("");
+    try {
+      await signup(
+        formData.firstName,
+        formData.lastName,
+        formData.dob,
+        formData.email,
+        formData.password
+      );
+      alert("Verification email sent! Please check your inbox.");
+      router.push(`/verifymail?email=${encodeURIComponent(email)}`);
+    } catch (error) {
+      setError(error.message);
+    }
+  };
 
-  const handleGoogleSignIn = () => {
-    // Here, you would implement the logic for Google sign‑in
-    console.log("Google Sign‑in triggered")
-    // Simulate redirect after successful google auth
-    router.push("/dashboard")
-  }
+  const handleGoogleSignIn = async () => {
+    try {
+      await googleSignIn();
+      router.push("/dashboard");
+    } catch (error) {
+      setError(error.message);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-r from-red-500 to-pink-600 flex items-center justify-center px-4">

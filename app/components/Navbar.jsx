@@ -1,10 +1,23 @@
-"use client"
-import React, { useState } from 'react';
-import Link from 'next/link';  // Changed this import
-import { Menu, X } from 'lucide-react';
+"use client";
+import React, { useState } from "react";
+import Link from "next/link";
+import { Menu, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext"; // Import AuthContext
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const { user, logout } = useAuth(); // Get user and logout function
+  // console.log(user)
+  const router = useRouter();
+
+  const handleAuthClick = async () => {
+    if (user) {
+      await logout();
+    } else {
+      router.push("/signin");
+    }
+  };
 
   return (
     <nav className="bg-red-600 shadow-lg">
@@ -12,7 +25,7 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo and Brand */}
           <div className="flex-shrink-0 flex items-center">
-            <span className="text-white text-xl font-bold">LifeLink</span>
+            <span className="text-white text-xl font-bold">Kurudhi Kodai</span>
           </div>
 
           {/* Desktop Navigation */}
@@ -29,8 +42,11 @@ const Navbar = () => {
             <Link href="/needdonor" className="text-white hover:text-red-200 px-3 py-2 text-sm font-medium">
               Require a Donor
             </Link>
-            <button className="bg-white text-red-600 hover:bg-red-100 px-4 py-2 rounded-md text-sm font-medium">
-              Login / Sign up
+            <button
+              onClick={handleAuthClick}
+              className="bg-white text-red-600 hover:bg-red-100 px-4 py-2 rounded-md text-sm font-medium"
+            >
+              {user ? "Logout" : "Login / Sign up"}
             </button>
           </div>
 
@@ -40,11 +56,7 @@ const Navbar = () => {
               onClick={() => setIsOpen(!isOpen)}
               className="text-white hover:text-red-200 focus:outline-none"
             >
-              {isOpen ? (
-                <X className="h-6 w-6" />
-              ) : (
-                <Menu className="h-6 w-6" />
-              )}
+              {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
         </div>
@@ -65,8 +77,11 @@ const Navbar = () => {
               <Link href="/needdonor" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
                 Require a Donor
               </Link>
-              <button className="w-full text-center bg-white text-red-600 hover:bg-red-100 px-4 py-2 rounded-md text-base font-medium">
-                Login / Sign up
+              <button
+                onClick={handleAuthClick}
+                className="w-full text-center bg-white text-red-600 hover:bg-red-100 px-4 py-2 rounded-md text-base font-medium"
+              >
+                {user ? "Logout" : "Login / Sign up"}
               </button>
             </div>
           </div>

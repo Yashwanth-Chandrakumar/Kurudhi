@@ -1,32 +1,45 @@
 "use client"
-
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 export default function SignIn() {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-  })
-  const router = useRouter()
+  });
+  const [error, setError] = useState("");
+  const router = useRouter();
+  const { signin, googleSignIn } = useAuth();
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value })
-  }
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    // In a real application, you would send this data to your backend for authentication
-    console.log("Form submitted:", formData)
-    // Simulate successful signin
-    router.push("/")
-  }
-  const handleGoogleSignIn = () => {
-    // Here, you would implement the logic for Google sign‑in
-    console.log("Google Sign‑in triggered")
-    // Simulate redirect after successful google auth
-    router.push("/dashboard")
-  }
+    e.preventDefault();
+    setError("");
+    try {
+      await signin(formData.email, formData.password);
+      router.push("/");
+    } catch (error) {
+      setError(error.message);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await googleSignIn();
+      router.push("/");
+    } catch (error) {
+      setError(error.message);
+    }
+  };
+
+
+  const navigateToSignUp = () => {
+    router.push("/signup");
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-r from-red-500 to-pink-600 flex items-center justify-center px-4">
@@ -75,6 +88,7 @@ export default function SignIn() {
           <a href="/forgot-password" className="text-sm text-red-500 hover:underline">
             Forgot Password?
           </a>
+          
         </div>
         <div className="flex items-center my-6">
           <div className="flex-grow border-t border-gray-300"></div>
@@ -94,6 +108,14 @@ export default function SignIn() {
           </svg>
           Sign in with Google
         </button>
+        <div className="mt-4 text-center">
+        <button
+            onClick={navigateToSignUp}
+            className="text-sm text-red-500 hover:underline"
+          >
+            New user - Register here
+          </button>
+          </div>
       </div>
     </div>
   )
