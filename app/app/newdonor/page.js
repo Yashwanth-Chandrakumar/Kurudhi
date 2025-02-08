@@ -8,6 +8,9 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useRouter } from 'next/navigation'; // Import useRouter
+
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -16,8 +19,17 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId:process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
+
+const indianStates = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
+  "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya",
+  "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim",
+  "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand",
+  "West Bengal"
+];
 
 const Stepper = ({ steps, currentStep }) => (
   <div className="flex justify-between mb-8 relative">
@@ -44,6 +56,7 @@ const Stepper = ({ steps, currentStep }) => (
 )
 
 export default function BecomeDonor() {
+  const router = useRouter(); // Initialize router
   const [currentStep, setCurrentStep] = useState(0)
   const [formData, setFormData] = useState({
     name: '',
@@ -53,7 +66,7 @@ export default function BecomeDonor() {
     email: '',
     mobile: '',
     whatsapp: '',
-    country: '',
+    country: 'India',
     state: '',
     permanentAddress: '',
     residentialAddress: '',
@@ -61,20 +74,162 @@ export default function BecomeDonor() {
     acceptTerms: false
   })
 
+  const [errors, setErrors] = useState({})
+  const [submitStatus, setSubmitStatus] = useState({ type: '', message: '' })
+
   const steps = ['Personal Details', 'Contact Info', 'Address', 'Confirmation']
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+  const getValidationErrors = (step) => {
+    const newErrors = {};
+  
+    switch (step) {
+      case 0:
+        if (!formData.name) {
+          newErrors.name = 'Name is required';
+        } else {
+          const error = validateField('name', formData.name);
+          if (error) {
+            newErrors.name = error;
+          }
+        }
+        
+        if (!formData.age) {
+          newErrors.age = 'Age is required';
+        } else {
+          const error = validateField('age', formData.age);
+          if (error) {
+            newErrors.age = error;
+          }
+        }
+        
+        if (!formData.gender) {
+          newErrors.gender = 'Please select gender';
+        }
+        if (!formData.bloodGroup) {
+          newErrors.bloodGroup = 'Please select blood group';
+        }
+        break;
+  
+      case 1:
+        if (!formData.email) {
+          newErrors.email = 'Email is required';
+        } else {
+          const error = validateField('email', formData.email);
+          if (error) {
+            newErrors.email = error;
+          }
+        }
+        
+        if (!formData.mobile) {
+          newErrors.mobile = 'Mobile number is required';
+        } else {
+          const error = validateField('mobile', formData.mobile);
+          if (error) {
+            newErrors.mobile = error;
+          }
+        }
+        
+        if (!formData.whatsapp) {
+          newErrors.whatsapp = 'WhatsApp number is required';
+        } else {
+          const error = validateField('whatsapp', formData.whatsapp);
+          if (error) {
+            newErrors.whatsapp = error;
+          }
+        }
+        break;
+  
+      case 2:
+        if (!formData.state) {
+          newErrors.state = 'Please select state';
+        }
+        
+        if (!formData.permanentAddress) {
+          newErrors.permanentAddress = 'Permanent address is required';
+        } else {
+          const error = validateField('permanentAddress', formData.permanentAddress);
+          if (error) {
+            newErrors.permanentAddress = error;
+          }
+        }
+        
+        if (!formData.sameAsPermenant && !formData.residentialAddress) {
+          newErrors.residentialAddress = 'Residential address is required';
+        }
+        break;
+  
+      case 3:
+        if (!formData.acceptTerms) {
+          newErrors.acceptTerms = 'Please accept the terms and conditions';
+        }
+        break;
+  
+      default:
+        break;
+    }
+  
+    return newErrors;
+  }
+  
+  
+  const validateField = (name, value) => {
+    switch (name) {
+      case 'name':
+        return value.trim().length < 2 
+          ? 'Name must be at least 2 characters long'
+          : !/^[a-zA-Z\s]*$/.test(value) 
+          ? 'Name can only contain letters and spaces'
+          : '';
+      case 'age':
+        return !value 
+          ? 'Age is required'
+          : value < 18 || value > 65 
+          ? 'Age must be between 18 and 65'
+          : '';
+      case 'email':
+        return !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) 
+          ? 'Please enter a valid email address'
+          : '';
+      case 'mobile':
+      case 'whatsapp':
+        return !/^[6-9]\d{9}$/.test(value) 
+          ? 'Please enter a valid 10-digit Indian mobile number'
+          : '';
+      case 'permanentAddress':
+      case 'residentialAddress':
+        return value.trim().length < 10 
+          ? 'Address must be at least 10 characters long'
+          : '';
+      default:
+        return '';
+    }
+  }
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
+    const newValue = type === 'checkbox' ? checked : value
+
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: newValue
     }))
+
+    if (type !== 'checkbox') {
+      const error = validateField(name, value)
+      setErrors(prev => ({
+        ...prev,
+        [name]: error
+      }))
+    }
   }
 
   const handleSelectChange = (name, value) => {
     setFormData(prev => ({ ...prev, [name]: value }))
+    setErrors(prev => ({
+      ...prev,
+      [name]: !value ? `Please select ${name}` : ''
+    }))
   }
 
   const handleAddressCheckbox = (checked) => {
@@ -85,55 +240,76 @@ export default function BecomeDonor() {
     }))
   }
 
-  const isStepValid = () => {
-    switch (currentStep) {
-      case 0: return formData.name && formData.age && formData.gender && formData.bloodGroup
-      case 1: return formData.email && formData.mobile && formData.whatsapp
-      case 2: return formData.country && formData.state && formData.permanentAddress && 
-              (formData.sameAsPermenant || formData.residentialAddress)
-      case 3: return formData.acceptTerms
-      default: return false
-    }
+  const validateStep = (step) => {
+    const newErrors = getValidationErrors(step);
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   }
+  
+
+  const isStepValid = () => {
+    const currentErrors = getValidationErrors(currentStep);
+    return Object.keys(currentErrors).length === 0;
+  }
+  
 
   const handleNext = () => {
-    if (isStepValid()) setCurrentStep(prev => prev + 1)
+    if (validateStep(currentStep)) {
+      setCurrentStep(prev => prev + 1);
+      setSubmitStatus({ type: '', message: '' });
+    }
   }
+  
 
   const handlePrevious = () => {
     setCurrentStep(prev => prev - 1)
+    setSubmitStatus({ type: '', message: '' })
   }
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (formData.acceptTerms) {
+    e.preventDefault()
+    if (!validateStep(currentStep)) return
+
     try {
-      // Prepare donor data for Firestore
+      setSubmitStatus({ type: 'info', message: 'Submitting your registration...' })
+      
       const donorData = {
         Age: parseInt(formData.age),
         BloodGroup: formData.bloodGroup,
         Country: formData.country,
         Email: formData.email,
         Gender: formData.gender,
-        MobileNumber: parseInt(formData.mobile),
+        MobileNumber: formData.mobile,
         Name: formData.name,
         PermanentAddress: formData.permanentAddress,
         ResidentialAddress: formData.residentialAddress || formData.permanentAddress,
         State: formData.state,
         WhatsappNumber: formData.whatsapp,
-      };
+        registeredAt: new Date().toISOString()
+      }
 
-      // Add document to 'donors' collection
-      const docRef = await addDoc(collection(db, 'donors'), donorData);
-      
-      console.log('Donor registered with ID: ', docRef.id);
-      alert('Thank you for registering as a donor!');
+      const docRef = await addDoc(collection(db, 'donors'), donorData)
+      setSubmitStatus({
+        type: 'success',
+        message: 'Thank you for registering as a blood donor! Your registration has been successful.'
+      })  
+      setTimeout(() => {
+        router.push('/'); // Navigate to home page
+      }, 2000);
     } catch (error) {
-      console.error('Error adding donor: ', error);
-      alert('Failed to submit. Please try again.');
+      console.error('Error adding donor: ', error)
+      setSubmitStatus({
+        type: 'error',
+        message: 'Failed to submit registration. Please try again later.'
+      })
     }
   }
-}
+
+  const renderFieldError = (fieldName) => {
+    return errors[fieldName] ? (
+      <p className="mt-1 text-sm text-red-600">{errors[fieldName]}</p>
+    ) : null
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-50 to-white py-12">
@@ -141,6 +317,23 @@ export default function BecomeDonor() {
         <h1 className="text-4xl font-bold text-center mb-8 text-red-700">
           Become a Blood Donor
         </h1>
+        
+        {submitStatus.message && (
+          <Alert className={`mb-4 ${
+            submitStatus.type === 'success' ? 'bg-green-50 border-green-200' :
+            submitStatus.type === 'error' ? 'bg-red-50 border-red-200' :
+            'bg-blue-50 border-blue-200'
+          }`}>
+            <AlertDescription className={`${
+              submitStatus.type === 'success' ? 'text-green-800' :
+              submitStatus.type === 'error' ? 'text-red-800' :
+              'text-blue-800'
+            }`}>
+              {submitStatus.message}
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Card className="border-2 border-red-100 shadow-lg">
           <CardContent className="pt-8">
             <Stepper steps={steps} currentStep={currentStep} />
@@ -157,22 +350,37 @@ export default function BecomeDonor() {
                         max={field === 'age' ? "65" : undefined}
                         value={formData[field]}
                         onChange={handleChange}
-                        className="border-red-200 focus:ring-red-500"
+                        className={`border-red-200 focus:ring-red-500 ${
+                          errors[field] ? 'border-red-500' : ''
+                        }`}
                         placeholder={`Enter your ${field}`}
                       />
+                      {renderFieldError(field)}
                     </div>
                   ))}
                   {['gender', 'bloodGroup'].map(field => (
                     <div key={field}>
-                      <Label className="text-red-700">{field === 'bloodGroup' ? 'Blood Group' : 'Gender'}</Label>
-                      <Select name={field} value={formData[field]} onValueChange={(value) => handleSelectChange(field, value)}>
-                        <SelectTrigger className="border-red-200">
-                          <SelectValue placeholder={`Select ${field === 'bloodGroup' ? 'blood group' : field}`} />
+                      <Label className="text-red-700">
+                        {field === 'bloodGroup' ? 'Blood Group' : 'Gender'}
+                      </Label>
+                      <Select
+                        name={field}
+                        value={formData[field]}
+                        onValueChange={(value) => handleSelectChange(field, value)}
+                      >
+                        <SelectTrigger className={`border-red-200 ${
+                          errors[field] ? 'border-red-500' : ''
+                        }`}>
+                          <SelectValue placeholder={`Select ${
+                            field === 'bloodGroup' ? 'blood group' : field
+                          }`} />
                         </SelectTrigger>
                         <SelectContent>
                           {field === 'gender' 
                             ? ['male', 'female', 'other'].map(value => (
-                                <SelectItem key={value} value={value} className="capitalize">{value}</SelectItem>
+                                <SelectItem key={value} value={value} className="capitalize">
+                                  {value}
+                                </SelectItem>
                               ))
                             : ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(value => (
                                 <SelectItem key={value} value={value}>{value}</SelectItem>
@@ -180,6 +388,7 @@ export default function BecomeDonor() {
                           }
                         </SelectContent>
                       </Select>
+                      {renderFieldError(field)}
                     </div>
                   ))}
                 </div>
@@ -195,9 +404,12 @@ export default function BecomeDonor() {
                         type={field === 'email' ? 'email' : 'tel'}
                         value={formData[field]}
                         onChange={handleChange}
-                        className="border-red-200 focus:ring-red-500"
+                        className={`border-red-200 focus:ring-red-500 ${
+                          errors[field] ? 'border-red-500' : ''
+                        }`}
                         placeholder={`Enter your ${field}`}
                       />
+                      {renderFieldError(field)}
                     </div>
                   ))}
                 </div>
@@ -205,31 +417,57 @@ export default function BecomeDonor() {
 
               {currentStep === 2 && (
                 <div className="space-y-4">
-                  {['country', 'state'].map(field => (
-                    <div key={field}>
-                      <Label className="text-red-700 capitalize">{field}</Label>
-                      <Select name={field} value={formData[field]} onValueChange={(value) => handleSelectChange(field, value)}>
-                        <SelectTrigger className="border-red-200">
-                          <SelectValue placeholder={`Select ${field}`} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={field === 'country' ? 'india' : 'maharashtra'} className="capitalize">
-                            {field === 'country' ? 'India' : 'Maharashtra'}
+                  <div>
+                    <Label className="text-red-700 capitalize">Country</Label>
+                    <Select name="country" value="India">
+                      <SelectTrigger className="border-red-200">
+                        <SelectValue placeholder="India" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="India" className="capitalize">
+                          India
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                  <Label className="text-red-700 capitalize">State</Label>
+                    <Select
+                      name="state"
+                      value={formData.state}
+                      onValueChange={(value) => handleSelectChange("state", value)}
+                    >
+                      <SelectTrigger className={`border-red-200 ${
+                        errors.state ? 'border-red-500' : ''
+                      }`}>
+                        <SelectValue placeholder="Select State" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {indianStates.map((state) => (
+                          <SelectItem key={state} value={state} className="capitalize">
+                            {state}
                           </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  ))}
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {renderFieldError('state')}
+                  </div>
+
                   <div>
                     <Label className="text-red-700">Permanent Address</Label>
                     <Input
                       name="permanentAddress"
                       value={formData.permanentAddress}
                       onChange={handleChange}
-                      className="border-red-200 focus:ring-red-500"
+                      className={`border-red-200 focus:ring-red-500 ${
+                        errors.permanentAddress ? 'border-red-500' : ''
+                      }`}
                       placeholder="Enter your permanent address"
                     />
+                    {renderFieldError('permanentAddress')}
                   </div>
+
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id="sameAddress"
@@ -237,8 +475,11 @@ export default function BecomeDonor() {
                       onCheckedChange={handleAddressCheckbox}
                       className="border-red-200 data-[state=checked]:bg-red-600"
                     />
-                    <Label htmlFor="sameAddress" className="text-red-700">Same as permanent address</Label>
+                    <Label htmlFor="sameAddress" className="text-red-700">
+                      Same as permanent address
+                    </Label>
                   </div>
+
                   {!formData.sameAsPermenant && (
                     <div>
                       <Label className="text-red-700">Residential Address</Label>
@@ -246,9 +487,12 @@ export default function BecomeDonor() {
                         name="residentialAddress"
                         value={formData.residentialAddress}
                         onChange={handleChange}
-                        className="border-red-200 focus:ring-red-500"
+                        className={`border-red-200 focus:ring-red-500 ${
+                          errors.residentialAddress ? 'border-red-500' : ''
+                        }`}
                         placeholder="Enter your residential address"
                       />
+                      {renderFieldError('residentialAddress')}
                     </div>
                   )}
                 </div>
@@ -269,6 +513,39 @@ export default function BecomeDonor() {
                       I accept the terms and conditions
                     </Label>
                   </div>
+                  {renderFieldError('acceptTerms')}
+
+                  {formData.acceptTerms && (
+                    <div className="mt-6 space-y-4 bg-red-50 p-4 rounded-lg">
+                      <h3 className="font-semibold text-red-800">Please review your information:</h3>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="text-red-600">Name:</div>
+                        <div className="text-red-900">{formData.name}</div>
+                        <div className="text-red-600">Age:</div>
+                        <div className="text-red-900">{formData.age}</div>
+                        <div className="text-red-600">Blood Group:</div>
+                        <div className="text-red-900">{formData.bloodGroup}</div>
+                        <div className="text-red-600">Gender:</div>
+                        <div className="text-red-900 capitalize">{formData.gender}</div>
+                        <div className="text-red-600">Email:</div>
+                        <div className="text-red-900">{formData.email}</div>
+                        <div className="text-red-600">Mobile:</div>
+                        <div className="text-red-900">{formData.mobile}</div>
+                        <div className="text-red-600">WhatsApp:</div>
+                        <div className="text-red-900">{formData.whatsapp}</div>
+                        <div className="text-red-600">State:</div>
+                        <div className="text-red-900">{formData.state}</div>
+                        <div className="text-red-600">Permanent Address:</div>
+                        <div className="text-red-900">{formData.permanentAddress}</div>
+                        {!formData.sameAsPermenant && (
+                          <>
+                            <div className="text-red-600">Residential Address:</div>
+                            <div className="text-red-900">{formData.residentialAddress}</div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -284,23 +561,24 @@ export default function BecomeDonor() {
                   </Button>
                 )}
                 {currentStep < steps.length - 1 ? (
-                  <Button 
-                    type="button" 
-                    onClick={handleNext}
-                    disabled={!isStepValid()}
-                    className="ml-auto bg-red-600 hover:bg-red-700 text-white disabled:bg-red-300"
-                  >
-                    Next
-                  </Button>
-                ) : (
-                  <Button 
-                    type="submit"
-                    disabled={!isStepValid()}
-                    className="ml-auto bg-red-600 hover:bg-red-700 text-white disabled:bg-red-300"
-                  >
-                    Submit
-                  </Button>
-                )}
+  <Button 
+    type="button" 
+    onClick={handleNext}
+    disabled={!isStepValid()}
+    className="ml-auto bg-red-600 hover:bg-red-700 text-white disabled:bg-red-300"
+  >
+    Next
+  </Button>
+) : (
+  <Button 
+    type="submit"
+    disabled={!isStepValid() || submitStatus.type === 'info'}
+    className="ml-auto bg-red-600 hover:bg-red-700 text-white disabled:bg-red-300"
+  >
+    Submit
+  </Button>
+)}
+
               </div>
             </form>
           </CardContent>
