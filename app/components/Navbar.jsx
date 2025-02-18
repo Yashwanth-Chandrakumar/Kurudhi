@@ -1,14 +1,31 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext"; // Import AuthContext
+import { useAuth } from "@/context/AuthContext";
+import CryptoJS from "crypto-js";
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getFirestore, doc, getDoc } from "firebase/firestore";
+
+// Firebase configuration (ensure these match your project settings)
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+};
+
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const db = getFirestore(app);
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { user, logout } = useAuth(); // Get user and logout function
-  // console.log(user)
+  const [userRole, setUserRole] = useState(null);
+  const { user, logout } = useAuth();
   const router = useRouter();
 
   const handleAuthClick = async () => {
@@ -18,6 +35,34 @@ const Navbar = () => {
       router.push("/signin");
     }
   };
+
+  // On component mount, decrypt the stored UID and check Firestore "users" collection for the user's role
+  useEffect(() => {
+    const checkUserRole = async () => {
+      const encryptedUID = localStorage.getItem("userUUID");
+      if (encryptedUID) {
+        const secretKey = process.env.NEXT_PUBLIC_UUID_SECRET || "default_secret_key";
+        try {
+          const bytes = CryptoJS.AES.decrypt(encryptedUID, secretKey);
+          const decryptedUID = bytes.toString(CryptoJS.enc.Utf8);
+          if (decryptedUID) {
+            const userDocRef = doc(db, "users", decryptedUID);
+            const userDocSnap = await getDoc(userDocRef);
+            if (userDocSnap.exists()) {
+              const data = userDocSnap.data();
+              setUserRole(data.role); // Expected to be "admin", "superadmin", or "user"
+            } else {
+              setUserRole(null);
+            }
+          }
+        } catch (error) {
+          console.error("Error decrypting UID or fetching user data:", error);
+        }
+      }
+    };
+
+    checkUserRole();
+  }, []);
 
   return (
     <nav className="bg-red-600 shadow-lg">
@@ -42,6 +87,17 @@ const Navbar = () => {
             <Link href="/needdonor" className="text-white hover:text-red-200 px-3 py-2 text-sm font-medium">
               Require a Donor
             </Link>
+            {/* Conditionally render the role-based option */}
+            {userRole === "admin" && (
+              <Link href="/admin" className="text-white hover:text-red-200 px-3 py-2 text-sm font-medium">
+                View as Admin
+              </Link>
+            )}
+            {userRole === "superadmin" && (
+              <Link href="/superadmin" className="text-white hover:text-red-200 px-3 py-2 text-sm font-medium">
+                View as Super Admin
+              </Link>
+            )}
             <button
               onClick={handleAuthClick}
               className="bg-white text-red-600 hover:bg-red-100 px-4 py-2 rounded-md text-sm font-medium"
@@ -77,6 +133,17 @@ const Navbar = () => {
               <Link href="/needdonor" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
                 Require a Donor
               </Link>
+              {/* Conditionally render role-based option for mobile */}
+              {userRole === "admin" && (
+                <Link href="/admin" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
+                  View as Admin
+                </Link>
+              )}
+              {userRole === "superadmin" && (
+                <Link href="/superadmin" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
+                  View as Super Admin
+                </Link>
+              )}
               <button
                 onClick={handleAuthClick}
                 className="w-full text-center bg-white text-red-600 hover:bg-red-100 px-4 py-2 rounded-md text-base font-medium"

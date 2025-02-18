@@ -1,7 +1,27 @@
-"use client"
+'use client'
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import CryptoJS from "crypto-js";
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+
+const SECRET_KEY = process.env.NEXT_PUBLIC_UUID_SECRET || "default_secret_key";
+
+// Firebase configuration
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+};
+
+// Initialize Firebase
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const db = getFirestore(app);
 
 export default function SignIn() {
   const [formData, setFormData] = useState({
@@ -16,11 +36,35 @@ export default function SignIn() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // Encrypts and stores the user's UID in localStorage
+  const storeEncryptedUUID = (uid) => {
+    const encryptedUID = CryptoJS.AES.encrypt(uid, SECRET_KEY).toString();
+    localStorage.setItem("userUUID", encryptedUID);
+  };
+
+  // Checks whether the user document exists in "users" collection; if not, add it with a default role of "user"
+  const checkAndAddUser = async (userCredential) => {
+    const uid = userCredential.uid;
+    const userDocRef = doc(db, "users", uid);
+    const userDocSnap = await getDoc(userDocRef);
+    if (!userDocSnap.exists()) {
+      await setDoc(userDocRef, {
+        uid,
+        email: userCredential.email,
+        role: "user"
+      });
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     try {
-      await signin(formData.email, formData.password);
+      // Sign in using email and password
+      const userCredential = await signin(formData.email, formData.password);
+      const uid = userCredential.uid;
+      storeEncryptedUUID(uid);
+      await checkAndAddUser(userCredential);
       router.push("/");
     } catch (error) {
       setError(error.message);
@@ -29,13 +73,16 @@ export default function SignIn() {
 
   const handleGoogleSignIn = async () => {
     try {
-      await googleSignIn();
+      const userCredential = await googleSignIn();
+      console.log("userCredential", userCredential);
+      const uid = userCredential.uid;
+      storeEncryptedUUID(uid);
+      await checkAndAddUser(userCredential);
       router.push("/");
     } catch (error) {
       setError(error.message);
     }
   };
-
 
   const navigateToSignUp = () => {
     router.push("/signup");
@@ -50,6 +97,11 @@ export default function SignIn() {
         <p className="text-center text-gray-600 mb-6">
           Sign in to continue
         </p>
+        {error && (
+          <div className="mb-4 text-center text-red-500 font-semibold">
+            {error}
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label htmlFor="email" className="block text-gray-700 mb-1">
@@ -88,7 +140,6 @@ export default function SignIn() {
           <a href="/forgot-password" className="text-sm text-red-500 hover:underline">
             Forgot Password?
           </a>
-          
         </div>
         <div className="flex items-center my-6">
           <div className="flex-grow border-t border-gray-300"></div>
@@ -109,14 +160,14 @@ export default function SignIn() {
           Sign in with Google
         </button>
         <div className="mt-4 text-center">
-        <button
+          <button
             onClick={navigateToSignUp}
             className="text-sm text-red-500 hover:underline"
           >
             New user - Register here
           </button>
-          </div>
+        </div>
       </div>
     </div>
-  )
+  );
 }
