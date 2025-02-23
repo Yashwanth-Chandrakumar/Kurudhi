@@ -398,7 +398,7 @@ export default function DonorDashboard() {
 
       {/* Section 1: Accepted Requests (Donor Side) */}
       <section className="mb-8">
-        <h2 className="text-2xl font-semibold mb-2">Accepted Requests (Donor Side)</h2>
+        <h2 className="text-2xl font-semibold mb-2">Current Requests</h2>
         {ongoingRequests.length === 0 ? (
           <p>No accepted requests available.</p>
         ) : (
@@ -410,7 +410,7 @@ export default function DonorDashboard() {
 
       {/* Section 2: My Requests (Requester Side) with Tabs */}
       <section className="mb-8">
-        <h2 className="text-2xl font-semibold mb-2">My Requests (Requester Side)</h2>
+        <h2 className="text-2xl font-semibold mb-2">My Requests</h2>
         <div className="flex space-x-2 mb-4">
           {tabStatuses.map(status => (
             <Button
