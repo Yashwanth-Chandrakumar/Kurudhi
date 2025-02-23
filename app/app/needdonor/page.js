@@ -9,14 +9,40 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import CryptoJS from "crypto-js";
 
+const SECRET_KEY = process.env.NEXT_PUBLIC_UUID_SECRET || "default_secret_key";
 const indianStates = [
-  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
-  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
-  "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya",
-  "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim",
-  "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand",
-  "West Bengal"
+  "Tamil Nadu"
+];
+const tamilNaduCities = [
+  "Ambur",
+  "Chennai",
+  "Coimbatore",
+  "Cuddalore",
+  "Dindigul",
+  "Erode",
+  "Hosur",
+  "Kanchipuram",
+  "Karaikkudi",
+  "Kanyakumari",
+  "Kumbakonam",
+  "Kovilpatti",
+  "Madurai",
+  "Nagapattinam",
+  "Nagercoil",
+  "Neyveli",
+  "Rajapalayam",
+  "Salem",
+  "Thanjavur",
+  "Thoothukudi",
+  "Tiruchirappalli",
+  "Tirunelveli",
+  "Tiruppur",
+  "Tiruvannamalai",
+  "Vellore",
+  "Viluppuram",
+  "Virudhunagar"
 ];
 
 const firebaseConfig = {
@@ -318,7 +344,15 @@ const RequestDonor = () => {
     }
 
     try {
+      const encryptedUUID = localStorage.getItem("userUUID");
+      let uuid = '';
+      if (encryptedUUID) {
+        // Decrypt the encrypted UID using the same secret key
+        const bytes = CryptoJS.AES.decrypt(encryptedUUID, SECRET_KEY);
+        uuid = bytes.toString(CryptoJS.enc.Utf8);
+      }
       const requestData = {
+        uuid, // <-- Include the decrypted UUID
         AttenderName: formData.attenderName,
         AttenderMobile: parseInt(formData.attenderMobile),
         BloodGroup: formData.bloodGroup,
@@ -337,13 +371,11 @@ const RequestDonor = () => {
       const docRef = await addDoc(collection(db, 'requests'), requestData);
       console.log('Blood request registered with ID: ', docRef.id);
       
-      // Instead of an alert, show a green success message above the card.
       setSubmitStatus({
         type: 'success',
         message: 'Your blood request has been submitted successfully!'
       });
       
-      // After 2 seconds, navigate to the home page.
       setTimeout(() => {
         router.push("/");
       }, 2000);
@@ -564,15 +596,32 @@ const RequestDonor = () => {
                   </div>
                   <div>
                     <Label className="text-red-700">City</Label>
-                    <Input
-                      name="city"
-                      value={formData.city}
-                      onChange={handleChange}
-                      onBlur={() => handleBlur('city')}
-                      className={`border-red-200 focus:ring-red-500 ${touched.city && errors.city ? 'border-red-500' : ''}`}
-                      placeholder="Enter city name"
-                    />
-                    {renderError('city')}
+                    {formData.state === "Tamil Nadu" ? (
+        <Select 
+          name="city" 
+          value={formData.city} 
+          onValueChange={(value) => handleSelectChange('city', value)}
+        >
+          <SelectTrigger className={`border-red-200 ${touched.city && errors.city ? 'border-red-500' : ''}`}>
+            <SelectValue placeholder="Select city" />
+          </SelectTrigger>
+          <SelectContent>
+            {tamilNaduCities.map((city, idx) => (
+              <SelectItem key={idx} value={city}>{city}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Input
+          name="city"
+          value={formData.city}
+          onChange={handleChange}
+          onBlur={() => handleBlur('city')}
+          className={`border-red-200 focus:ring-red-500 ${touched.city && errors.city ? 'border-red-500' : ''}`}
+          placeholder="Enter city name"
+        />
+      )}
+      {renderError('city')}
                   </div>
                 </div>
               )}

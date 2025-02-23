@@ -1,16 +1,16 @@
 'use client'
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc } from 'firebase/firestore';
-import { useState } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { useRouter } from 'next/navigation'; // Import useRouter
-
+import { useState, useEffect } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -22,13 +22,34 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-const indianStates = [
-  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
-  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
-  "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya",
-  "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim",
-  "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand",
-  "West Bengal"
+const tamilNaduCities = [
+  "Ambur",
+  "Chennai",
+  "Coimbatore",
+  "Cuddalore",
+  "Dindigul",
+  "Erode",
+  "Hosur",
+  "Kanchipuram",
+  "Karaikkudi",
+  "Kanyakumari",
+  "Kumbakonam",
+  "Kovilpatti",
+  "Madurai",
+  "Nagapattinam",
+  "Nagercoil",
+  "Neyveli",
+  "Rajapalayam",
+  "Salem",
+  "Thanjavur",
+  "Thoothukudi",
+  "Tiruchirappalli",
+  "Tirunelveli",
+  "Tiruppur",
+  "Tiruvannamalai",
+  "Vellore",
+  "Viluppuram",
+  "Virudhunagar"
 ];
 
 const Stepper = ({ steps, currentStep }) => (
@@ -53,11 +74,12 @@ const Stepper = ({ steps, currentStep }) => (
       </div>
     ))}
   </div>
-)
+);
 
 export default function BecomeDonor() {
-  const router = useRouter(); // Initialize router
-  const [currentStep, setCurrentStep] = useState(0)
+  const router = useRouter();
+  const { user } = useAuth();
+  const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
     name: '',
     age: '',
@@ -67,112 +89,86 @@ export default function BecomeDonor() {
     mobile: '',
     whatsapp: '',
     country: 'India',
-    state: '',
-    permanentAddress: '',
-    residentialAddress: '',
+    state: 'Tamil Nadu', // Fixed state
+    permanentCity: '',
+    residentCity: '',
     sameAsPermenant: false,
     acceptTerms: false
-  })
+  });
 
-  const [errors, setErrors] = useState({})
-  const [submitStatus, setSubmitStatus] = useState({ type: '', message: '' })
+  // Set email from auth on mount.
+  useEffect(() => {
+    if(user?.email) {
+      setFormData(prev => ({ ...prev, email: user.email }));
+    }
+  }, [user]);
 
-  const steps = ['Personal Details', 'Contact Info', 'Address', 'Confirmation']
+  const [errors, setErrors] = useState({});
+  const [submitStatus, setSubmitStatus] = useState({ type: '', message: '' });
+
+  const steps = ['Personal Details', 'Contact Info', 'City Info', 'Confirmation'];
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+
+  // Updated validation for step 2 to use cities
   const getValidationErrors = (step) => {
     const newErrors = {};
-  
+
     switch (step) {
       case 0:
         if (!formData.name) {
           newErrors.name = 'Name is required';
         } else {
           const error = validateField('name', formData.name);
-          if (error) {
-            newErrors.name = error;
-          }
+          if (error) newErrors.name = error;
         }
-        
         if (!formData.age) {
           newErrors.age = 'Age is required';
         } else {
           const error = validateField('age', formData.age);
-          if (error) {
-            newErrors.age = error;
-          }
+          if (error) newErrors.age = error;
         }
-        
-        if (!formData.gender) {
-          newErrors.gender = 'Please select gender';
-        }
-        if (!formData.bloodGroup) {
-          newErrors.bloodGroup = 'Please select blood group';
-        }
+        if (!formData.gender) newErrors.gender = 'Please select gender';
+        if (!formData.bloodGroup) newErrors.bloodGroup = 'Please select blood group';
         break;
-  
+
       case 1:
         if (!formData.email) {
           newErrors.email = 'Email is required';
         } else {
           const error = validateField('email', formData.email);
-          if (error) {
-            newErrors.email = error;
-          }
+          if (error) newErrors.email = error;
         }
-        
         if (!formData.mobile) {
           newErrors.mobile = 'Mobile number is required';
         } else {
           const error = validateField('mobile', formData.mobile);
-          if (error) {
-            newErrors.mobile = error;
-          }
+          if (error) newErrors.mobile = error;
         }
-        
         if (!formData.whatsapp) {
           newErrors.whatsapp = 'WhatsApp number is required';
         } else {
           const error = validateField('whatsapp', formData.whatsapp);
-          if (error) {
-            newErrors.whatsapp = error;
-          }
+          if (error) newErrors.whatsapp = error;
         }
         break;
-  
+
       case 2:
-        if (!formData.state) {
-          newErrors.state = 'Please select state';
-        }
-        
-        if (!formData.permanentAddress) {
-          newErrors.permanentAddress = 'Permanent address is required';
-        } else {
-          const error = validateField('permanentAddress', formData.permanentAddress);
-          if (error) {
-            newErrors.permanentAddress = error;
-          }
-        }
-        
-        if (!formData.sameAsPermenant && !formData.residentialAddress) {
-          newErrors.residentialAddress = 'Residential address is required';
-        }
+        // Permanent and Resident City are required.
+        if (!formData.permanentCity) newErrors.permanentCity = 'Permanent city is required';
+        if (!formData.sameAsPermenant && !formData.residentCity) newErrors.residentCity = 'Resident city is required';
         break;
-  
+
       case 3:
-        if (!formData.acceptTerms) {
-          newErrors.acceptTerms = 'Please accept the terms and conditions';
-        }
+        if (!formData.acceptTerms) newErrors.acceptTerms = 'Please accept the terms and conditions';
         break;
-  
+
       default:
         break;
     }
-  
     return newErrors;
-  }
-  
-  
+  };
+
   const validateField = (name, value) => {
     switch (name) {
       case 'name':
@@ -196,83 +192,62 @@ export default function BecomeDonor() {
         return !/^[6-9]\d{9}$/.test(value) 
           ? 'Please enter a valid 10-digit Indian mobile number'
           : '';
-      case 'permanentAddress':
-      case 'residentialAddress':
-        return value.trim().length < 10 
-          ? 'Address must be at least 10 characters long'
-          : '';
       default:
         return '';
     }
-  }
+  };
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target
-    const newValue = type === 'checkbox' ? checked : value
-
-    setFormData(prev => ({
-      ...prev,
-      [name]: newValue
-    }))
-
+    const { name, value, type, checked } = e.target;
+    const newValue = type === 'checkbox' ? checked : value;
+    setFormData(prev => ({ ...prev, [name]: newValue }));
     if (type !== 'checkbox') {
-      const error = validateField(name, value)
-      setErrors(prev => ({
-        ...prev,
-        [name]: error
-      }))
+      const error = validateField(name, value);
+      setErrors(prev => ({ ...prev, [name]: error }));
     }
-  }
+  };
 
   const handleSelectChange = (name, value) => {
-    setFormData(prev => ({ ...prev, [name]: value }))
-    setErrors(prev => ({
-      ...prev,
-      [name]: !value ? `Please select ${name}` : ''
-    }))
-  }
+    setFormData(prev => ({ ...prev, [name]: value }));
+    setErrors(prev => ({ ...prev, [name]: !value ? `Please select ${name}` : '' }));
+  };
 
   const handleAddressCheckbox = (checked) => {
     setFormData(prev => ({
       ...prev,
       sameAsPermenant: checked,
-      residentialAddress: checked ? prev.permanentAddress : ''
-    }))
-  }
+      residentCity: checked ? prev.permanentCity : ''
+    }));
+  };
 
   const validateStep = (step) => {
     const newErrors = getValidationErrors(step);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }
-  
+  };
 
   const isStepValid = () => {
     const currentErrors = getValidationErrors(currentStep);
     return Object.keys(currentErrors).length === 0;
-  }
-  
+  };
 
   const handleNext = () => {
     if (validateStep(currentStep)) {
       setCurrentStep(prev => prev + 1);
       setSubmitStatus({ type: '', message: '' });
     }
-  }
-  
+  };
 
   const handlePrevious = () => {
-    setCurrentStep(prev => prev - 1)
-    setSubmitStatus({ type: '', message: '' })
-  }
+    setCurrentStep(prev => prev - 1);
+    setSubmitStatus({ type: '', message: '' });
+  };
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!validateStep(currentStep)) return
-
+    e.preventDefault();
+    if (!validateStep(currentStep)) return;
     try {
-      setSubmitStatus({ type: 'info', message: 'Submitting your registration...' })
-      
+      setSubmitStatus({ type: 'info', message: 'Submitting your registration...' });
       const donorData = {
         Age: parseInt(formData.age),
         BloodGroup: formData.bloodGroup,
@@ -281,35 +256,34 @@ export default function BecomeDonor() {
         Gender: formData.gender,
         MobileNumber: formData.mobile,
         Name: formData.name,
-        PermanentAddress: formData.permanentAddress,
-        ResidentialAddress: formData.residentialAddress || formData.permanentAddress,
+        PermanentCity: formData.permanentCity,
+        ResidentCity: formData.residentCity || formData.permanentCity,
         State: formData.state,
         WhatsappNumber: formData.whatsapp,
         registeredAt: new Date().toISOString()
-      }
-
-      const docRef = await addDoc(collection(db, 'donors'), donorData)
+      };
+      await addDoc(collection(db, 'donors'), donorData);
       setSubmitStatus({
         type: 'success',
         message: 'Thank you for registering as a blood donor! Your registration has been successful.'
-      })  
+      });
       setTimeout(() => {
-        router.push('/'); // Navigate to home page
+        router.push('/');
       }, 2000);
     } catch (error) {
-      console.error('Error adding donor: ', error)
+      console.error('Error adding donor: ', error);
       setSubmitStatus({
         type: 'error',
         message: 'Failed to submit registration. Please try again later.'
-      })
+      });
     }
-  }
+  };
 
   const renderFieldError = (fieldName) => {
     return errors[fieldName] ? (
       <p className="mt-1 text-sm text-red-600">{errors[fieldName]}</p>
-    ) : null
-  }
+    ) : null;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-50 to-white py-12">
@@ -371,9 +345,7 @@ export default function BecomeDonor() {
                         <SelectTrigger className={`border-red-200 ${
                           errors[field] ? 'border-red-500' : ''
                         }`}>
-                          <SelectValue placeholder={`Select ${
-                            field === 'bloodGroup' ? 'blood group' : field
-                          }`} />
+                          <SelectValue placeholder={`Select ${field === 'bloodGroup' ? 'blood group' : field}`} />
                         </SelectTrigger>
                         <SelectContent>
                           {field === 'gender' 
@@ -408,6 +380,7 @@ export default function BecomeDonor() {
                           errors[field] ? 'border-red-500' : ''
                         }`}
                         placeholder={`Enter your ${field}`}
+                        disabled={field === 'email'}  // Email field is disabled
                       />
                       {renderFieldError(field)}
                     </div>
@@ -432,40 +405,54 @@ export default function BecomeDonor() {
                   </div>
 
                   <div>
-                  <Label className="text-red-700 capitalize">State</Label>
+                    <Label className="text-red-700 capitalize">State</Label>
+                    <Input
+                      value="Tamil Nadu"
+                      disabled
+                      className="bg-gray-100 border-red-200"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-red-700">Permanent City</Label>
                     <Select
-                      name="state"
-                      value={formData.state}
-                      onValueChange={(value) => handleSelectChange("state", value)}
+                      name="permanentCity"
+                      value={formData.permanentCity}
+                      onValueChange={(value) => handleSelectChange("permanentCity", value)}
                     >
-                      <SelectTrigger className={`border-red-200 ${
-                        errors.state ? 'border-red-500' : ''
-                      }`}>
-                        <SelectValue placeholder="Select State" />
+                      <SelectTrigger className={`border-red-200 ${errors.permanentCity ? 'border-red-500' : ''}`}>
+                        <SelectValue placeholder="Select your permanent city" />
                       </SelectTrigger>
                       <SelectContent>
-                        {indianStates.map((state) => (
-                          <SelectItem key={state} value={state} className="capitalize">
-                            {state}
+                        {tamilNaduCities.map((city) => (
+                          <SelectItem key={city} value={city} className="capitalize">
+                            {city}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    {renderFieldError('state')}
+                    {renderFieldError('permanentCity')}
                   </div>
 
                   <div>
-                    <Label className="text-red-700">Permanent Address</Label>
-                    <Input
-                      name="permanentAddress"
-                      value={formData.permanentAddress}
-                      onChange={handleChange}
-                      className={`border-red-200 focus:ring-red-500 ${
-                        errors.permanentAddress ? 'border-red-500' : ''
-                      }`}
-                      placeholder="Enter your permanent address"
-                    />
-                    {renderFieldError('permanentAddress')}
+                    <Label className="text-red-700">Resident City</Label>
+                    <Select
+                      name="residentCity"
+                      value={formData.residentCity}
+                      onValueChange={(value) => handleSelectChange("residentCity", value)}
+                    >
+                      <SelectTrigger className={`border-red-200 ${errors.residentCity ? 'border-red-500' : ''}`}>
+                        <SelectValue placeholder="Select your resident city" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {tamilNaduCities.map((city) => (
+                          <SelectItem key={city} value={city} className="capitalize">
+                            {city}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {renderFieldError('residentCity')}
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -476,25 +463,9 @@ export default function BecomeDonor() {
                       className="border-red-200 data-[state=checked]:bg-red-600"
                     />
                     <Label htmlFor="sameAddress" className="text-red-700">
-                      Same as permanent address
+                      Same as permanent city
                     </Label>
                   </div>
-
-                  {!formData.sameAsPermenant && (
-                    <div>
-                      <Label className="text-red-700">Residential Address</Label>
-                      <Input
-                        name="residentialAddress"
-                        value={formData.residentialAddress}
-                        onChange={handleChange}
-                        className={`border-red-200 focus:ring-red-500 ${
-                          errors.residentialAddress ? 'border-red-500' : ''
-                        }`}
-                        placeholder="Enter your residential address"
-                      />
-                      {renderFieldError('residentialAddress')}
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -534,15 +505,11 @@ export default function BecomeDonor() {
                         <div className="text-red-600">WhatsApp:</div>
                         <div className="text-red-900">{formData.whatsapp}</div>
                         <div className="text-red-600">State:</div>
-                        <div className="text-red-900">{formData.state}</div>
-                        <div className="text-red-600">Permanent Address:</div>
-                        <div className="text-red-900">{formData.permanentAddress}</div>
-                        {!formData.sameAsPermenant && (
-                          <>
-                            <div className="text-red-600">Residential Address:</div>
-                            <div className="text-red-900">{formData.residentialAddress}</div>
-                          </>
-                        )}
+                        <div className="text-red-900">Tamil Nadu</div>
+                        <div className="text-red-600">Permanent City:</div>
+                        <div className="text-red-900">{formData.permanentCity}</div>
+                        <div className="text-red-600">Resident City:</div>
+                        <div className="text-red-900">{formData.residentCity || formData.permanentCity}</div>
                       </div>
                     </div>
                   )}
@@ -561,29 +528,28 @@ export default function BecomeDonor() {
                   </Button>
                 )}
                 {currentStep < steps.length - 1 ? (
-  <Button 
-    type="button" 
-    onClick={handleNext}
-    disabled={!isStepValid()}
-    className="ml-auto bg-red-600 hover:bg-red-700 text-white disabled:bg-red-300"
-  >
-    Next
-  </Button>
-) : (
-  <Button 
-    type="submit"
-    disabled={!isStepValid() || submitStatus.type === 'info'}
-    className="ml-auto bg-red-600 hover:bg-red-700 text-white disabled:bg-red-300"
-  >
-    Submit
-  </Button>
-)}
-
+                  <Button 
+                    type="button" 
+                    onClick={handleNext}
+                    disabled={!isStepValid()}
+                    className="ml-auto bg-red-600 hover:bg-red-700 text-white disabled:bg-red-300"
+                  >
+                    Next
+                  </Button>
+                ) : (
+                  <Button 
+                    type="submit"
+                    disabled={!isStepValid() || submitStatus.type === 'info'}
+                    className="ml-auto bg-red-600 hover:bg-red-700 text-white disabled:bg-red-300"
+                  >
+                    Submit
+                  </Button>
+                )}
               </div>
             </form>
           </CardContent>
         </Card>
       </div>
     </div>
-  )
+  );
 }
