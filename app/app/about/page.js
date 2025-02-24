@@ -4,125 +4,127 @@ import { Heart, Users, Target, Award, CheckCircle, Calendar } from 'lucide-react
 import Navbar from '@/components/Navbar';
 
 const TeamMember = ({ name, role, image }) => (
-  <div className="bg-white rounded-lg shadow-lg overflow-hidden transform hover:-translate-y-1 transition-transform duration-300">
-    <img src={image} alt={name} className="w-full h-48 object-cover" />
-    <div className="p-4">
-      <h3 className="text-xl font-semibold text-gray-900">{name}</h3>
-      <p className="text-gray-700">{role}</p>
+  <div className="bg-white rounded-2xl shadow-2xl overflow-hidden transform hover:-translate-y-2 transition-transform duration-300">
+    <img src={image} alt={name} className="w-full h-56 object-cover" />
+    <div className="p-6">
+      <h3 className="text-2xl font-bold text-red-700">{name}</h3>
+      <p className="text-lg text-gray-600">{role}</p>
     </div>
   </div>
 );
 
 const ValueCard = ({ icon: Icon, title, description }) => (
-  <div className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow">
-    <div className="w-12 h-12 bg-red-200 rounded-full flex items-center justify-center mb-4">
-      <Icon className="w-6 h-6 text-red-700" />
+  <div className="bg-white p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-shadow">
+    <div className="w-16 h-16 bg-red-200 rounded-full flex items-center justify-center mb-6">
+      <Icon className="w-8 h-8 text-red-700" />
     </div>
-    <h3 className="text-xl font-semibold mb-2 text-gray-900">{title}</h3>
-    <p className="text-gray-700 leading-relaxed">{description}</p>
+    <h3 className="text-2xl font-bold mb-4 text-red-800">{title}</h3>
+    <p className="text-gray-700 text-lg leading-relaxed">{description}</p>
   </div>
 );
 
 export default function About() {
   return (
-    <div className="min-h-screen">
-      <Navbar/>
+    <div className="min-h-screen bg-white flex flex-col">
+      <Navbar />
+
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-red-700 to-red-900 text-white py-20">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-5xl font-bold mb-6 animate-fade-in">
-              About Kurudhi Kodai
-            </h1>
-            <p className="text-xl text-white mb-8">
-              Empowering communities through blood donation since 2023
+      <section className="relative bg-gradient-to-r from-red-800 to-red-600 text-white py-20">
+        <div className="absolute inset-0">
+          <img 
+            src="/api/placeholder/1600/900" 
+            alt="About Us Background" 
+            className="w-full h-full object-cover opacity-30"
+          />
+          <div className="absolute inset-0 bg-red-900 opacity-70"></div>
+        </div>
+        <div className="relative container mx-auto px-4 text-center">
+          <h1 className="text-5xl md:text-7xl font-extrabold mb-6 animate-slide-in">
+            About Kurudhi Kodai
+          </h1>
+          <p className="text-xl md:text-2xl max-w-2xl mx-auto mb-8 animate-fade-in">
+            Empowering communities through blood donation since 2023.
+          </p>
+        </div>
+      </section>
+
+      {/* Mission Section */}
+      <section className="py-20 bg-white">
+        <div className="container mx-auto px-4 flex flex-col md:flex-row items-center gap-12">
+          <div className="flex items-center justify-center md:w-1/2">
+            <img 
+              src="/freepik__adjust__67319.png" 
+              alt="Our Mission" 
+              className="rounded-2xl shadow-2xl animate-float max-h-96"
+            />
+          </div>
+          <div className="md:w-1/2">
+            <h2 className="text-4xl font-bold mb-6 text-red-800">Our Mission</h2>
+            <p className="text-lg text-gray-700 mb-6 leading-relaxed">
+              At Kurudhi Kodai, we believe every life matters. Our mission is to bridge the gap between donors and recipients,
+              ensuring safe and timely blood transfusions for all.
+            </p>
+            <p className="text-lg text-gray-700 leading-relaxed">
+              Since 2023, we have built a community of passionate donors and healthcare partners to keep our communities thriving.
             </p>
           </div>
         </div>
       </section>
 
-      {/* Mission Section */}
-      <section className="py-16 bg-white">
+      {/* Core Values Section */}
+      <section className="py-20 bg-red-50">
         <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row items-center gap-12">
-            <div className="md:w-1/2">
-              <img 
-                src="/api/placeholder/600/400" 
-                alt="Our Mission" 
-                className="rounded-lg shadow-xl animate-float"
-              />
-            </div>
-            <div className="md:w-1/2">
-              <h2 className="text-3xl font-bold mb-6 text-gray-900">Our Mission</h2>
-              <p className="text-gray-700 text-lg mb-6 leading-relaxed">
-                At Kurudhi Kodai, we believe that every person deserves access to safe and timely blood transfusions. 
-                Our mission is to bridge the gap between blood donors and recipients, creating a seamless and efficient 
-                platform for blood donation.
-              </p>
-              <p className="text-gray-700 text-lg leading-relaxed">
-                Since our founding in 2023, we have been working tirelessly to build a community of committed donors 
-                and establish partnerships with healthcare providers to ensure that blood is available whenever and 
-                wherever it's needed.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Values Section */}
-      <section className="py-16 bg-gray-100">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">Our Core Values</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <h2 className="text-4xl font-bold text-center text-red-800 mb-12">Our Core Values</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
             <ValueCard 
               icon={Heart}
               title="Compassion"
-              description="We believe in the power of human kindness and its ability to save lives through voluntary blood donation."
+              description="We believe in the power of kindness—helping one another to save lives."
             />
             <ValueCard 
               icon={Target}
               title="Excellence"
-              description="We strive for excellence in every aspect of our service, from donor experience to blood distribution."
+              description="Striving for perfection in every service, ensuring safety and efficiency."
             />
             <ValueCard 
               icon={Users}
               title="Community"
-              description="We foster a strong community of donors and healthcare partners united by the goal of saving lives."
+              description="Building a robust network of donors and healthcare professionals for a better tomorrow."
             />
           </div>
         </div>
       </section>
 
-      {/* Achievement Section */}
-      <section className="py-16 bg-white">
+      {/* Achievements Section */}
+      <section className="py-20 bg-white">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">Our Impact</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
+          <h2 className="text-4xl font-bold text-center text-red-800 mb-12">Our Impact</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-10 text-center">
             <div className="p-6">
-              <div className="text-4xl font-bold text-red-700 mb-2">10,000+</div>
-              <p className="text-gray-700">Registered Donors</p>
+              <div className="text-5xl font-extrabold text-red-700 mb-2">10,000+</div>
+              <p className="text-lg text-gray-600">Registered Donors</p>
             </div>
             <div className="p-6">
-              <div className="text-4xl font-bold text-red-700 mb-2">5,000+</div>
-              <p className="text-gray-700">Lives Saved</p>
+              <div className="text-5xl font-extrabold text-red-700 mb-2">5,000+</div>
+              <p className="text-lg text-gray-600">Lives Saved</p>
             </div>
             <div className="p-6">
-              <div className="text-4xl font-bold text-red-700 mb-2">100+</div>
-              <p className="text-gray-700">Partner Hospitals</p>
+              <div className="text-5xl font-extrabold text-red-700 mb-2">100+</div>
+              <p className="text-lg text-gray-600">Partner Hospitals</p>
             </div>
             <div className="p-6">
-              <div className="text-4xl font-bold text-red-700 mb-2">24/7</div>
-              <p className="text-gray-700">Support Available</p>
+              <div className="text-5xl font-extrabold text-red-700 mb-2">24/7</div>
+              <p className="text-lg text-gray-600">Support Available</p>
             </div>
           </div>
         </div>
       </section>
 
       {/* Team Section */}
-      <section className="py-16 bg-gray-100">
+      <section className="py-20 bg-red-50">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">Our Team</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <h2 className="text-4xl font-bold text-center text-red-800 mb-12">Our Team</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
             <TeamMember 
               name="Dr. Sarah Johnson"
               role="Medical Director"
@@ -143,38 +145,84 @@ export default function About() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-red-700 text-white">
+      <section className="py-20 bg-red-700 text-white">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-6">Join Our Mission</h2>
+          <h2 className="text-4xl font-bold mb-6">Join Our Mission</h2>
           <p className="text-xl mb-8 max-w-2xl mx-auto">
-            Together, we can make a difference. Join our community of blood donors and help save lives.
+            Be a hero in your community. Donate blood, save lives, and inspire change with Kurudhi Kodai.
           </p>
-          <div className="flex justify-center space-x-4">
-            <button className="bg-white text-red-700 px-8 py-3 rounded-full font-semibold hover:bg-gray-100 transition-colors">
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <button className="bg-white text-red-700 px-10 py-4 rounded-full font-bold hover:bg-gray-100 transition-all">
               Become a Donor
             </button>
-            <button className="border-2 border-white px-8 py-3 rounded-full font-semibold hover:bg-white hover:text-red-700 transition-colors">
+            <button className="border-2 border-white text-white px-10 py-4 rounded-full font-bold hover:bg-white hover:text-red-700 transition-all">
               Learn More
             </button>
           </div>
         </div>
       </section>
 
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-12">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+            <div>
+              <h3 className="text-2xl font-bold mb-4">Kurudhi Kodai</h3>
+              <p className="text-gray-400">Connecting communities with life-saving blood donations since 2023.</p>
+            </div>
+            <div>
+              <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
+              <ul className="space-y-2">
+                <li><a href="/about" className="text-gray-400 hover:text-white transition-colors">About Us</a></li>
+                <li><a href="/donate" className="text-gray-400 hover:text-white transition-colors">Donate Blood</a></li>
+                <li><a href="/find" className="text-gray-400 hover:text-white transition-colors">Find Donors</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-lg font-semibold mb-4">Resources</h4>
+              <ul className="space-y-2">
+                <li><a href="/blog" className="text-gray-400 hover:text-white transition-colors">Blog</a></li>
+                <li><a href="/faq" className="text-gray-400 hover:text-white transition-colors">FAQs</a></li>
+                <li><a href="/guidelines" className="text-gray-400 hover:text-white transition-colors">Guidelines</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-lg font-semibold mb-4">Legal</h4>
+              <ul className="space-y-2">
+                <li><a href="/privacy" className="text-gray-400 hover:text-white transition-colors">Privacy Policy</a></li>
+                <li><a href="/terms" className="text-gray-400 hover:text-white transition-colors">Terms of Service</a></li>
+                <li><a href="/contact" className="text-gray-400 hover:text-white transition-colors">Contact Us</a></li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-gray-800 pt-6 text-center">
+            <p className="text-gray-400">&copy; {new Date().getFullYear()} Kurudhi Kodai. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
+
       <style jsx>{`
         @keyframes float {
-          0% { transform: translateY(0px); }
-          50% { transform: translateY(-10px); }
-          100% { transform: translateY(0px); }
+          0% { transform: translateY(0); }
+          50% { transform: translateY(-15px); }
+          100% { transform: translateY(0); }
         }
         .animate-float {
-          animation: float 3s ease-in-out infinite;
+          animation: float 4s ease-in-out infinite;
         }
-        .animate-fade-in {
-          animation: fadeIn 1s ease-in;
+        @keyframes slide-in {
+          from { opacity: 0; transform: translateX(-50px); }
+          to { opacity: 1; transform: translateX(0); }
         }
-        @keyframes fadeIn {
+        .animate-slide-in {
+          animation: slide-in 1s ease-out forwards;
+        }
+        @keyframes fade-in {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+          animation: fade-in 1.5s ease-out forwards;
         }
       `}</style>
     </div>

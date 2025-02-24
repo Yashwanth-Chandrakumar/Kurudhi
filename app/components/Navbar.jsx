@@ -92,55 +92,46 @@ const Navbar = () => {
   }, [user]);
 
   return (
-    <nav className="bg-red-600 shadow-lg">
+    <nav className="bg-gradient-to-r from-red-700 to-red-600 shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex justify-between items-center h-16 relative">
-          {/* Logo and Brand */}
+          {/* Logo Section */}
           <div className="flex-shrink-0 flex items-center">
-            <span className="text-white text-xl font-bold">Kurudhi Kodai</span>
+            <Link href="/">
+              {/* Replace "/logo.png" with your logo image */}
+              <img src="/kk.png" alt="Logo" className="h-36 w-auto" />
+            </Link>
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
-            <Link href="/" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
+          <div className="hidden md:flex items-center space-x-6">
+            <Link href="/" className="text-white hover:bg-red-500 px-3 py-2 rounded-md text-base font-medium">
               Home
             </Link>
-            <Link
-              href="/dashboard"
-              className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium"
-            >
+            <Link href="/dashboard" className="text-white hover:bg-red-500 px-3 py-2 rounded-md text-base font-medium">
               Dashboard
             </Link>
-            <Link href="/about" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
+            <Link href="/about" className="text-white hover:bg-red-500 px-3 py-2 rounded-md text-base font-medium">
               About
             </Link>
             {user && !isDonor && (
-              <Link
-                href="/newdonor"
-                className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium"
-              >
+              <Link href="/newdonor" className="text-white hover:bg-red-500 px-3 py-2 rounded-md text-base font-medium">
                 Become a Donor
               </Link>
             )}
-            <Link href="/needdonor" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
+            <Link href="/needdonor" className="text-white hover:bg-red-500 px-3 py-2 rounded-md text-base font-medium">
               Require a Donor
             </Link>
-            <Link href="/camp" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
+            <Link href="/camp" className="text-white hover:bg-red-500 px-3 py-2 rounded-md text-base font-medium">
               Host a Camp
             </Link>
             {userRole === "admin" && (
-              <Link
-                href="/admin"
-                className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium"
-              >
+              <Link href="/admin" className="text-white hover:bg-red-500 px-3 py-2 rounded-md text-base font-medium">
                 View as Admin
               </Link>
             )}
             {userRole === "superadmin" && (
-              <Link
-                href="/superadmin"
-                className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium"
-              >
+              <Link href="/superadmin" className="text-white hover:bg-red-500 px-3 py-2 rounded-md text-base font-medium">
                 View as Super Admin
               </Link>
             )}
@@ -180,12 +171,9 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Mobile menu button */}
+          {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center">
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="text-white hover:text-red-200 focus:outline-none"
-            >
+            <button onClick={() => setIsOpen(!isOpen)} className="text-white hover:text-red-200 focus:outline-none">
               {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
@@ -205,10 +193,7 @@ const Navbar = () => {
                 About
               </Link>
               {user && !isDonor && (
-                <Link
-                  href="/newdonor"
-                  className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium"
-                >
+                <Link href="/newdonor" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
                   Become a Donor
                 </Link>
               )}
@@ -219,18 +204,12 @@ const Navbar = () => {
                 Host a Camp
               </Link>
               {userRole === "admin" && (
-                <Link
-                  href="/admin"
-                  className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium"
-                >
+                <Link href="/admin" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
                   View as Admin
                 </Link>
               )}
               {userRole === "superadmin" && (
-                <Link
-                  href="/superadmin"
-                  className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium"
-                >
+                <Link href="/superadmin" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
                   View as Super Admin
                 </Link>
               )}

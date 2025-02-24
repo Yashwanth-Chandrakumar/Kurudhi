@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import CryptoJS from "crypto-js";
+import Navbar from '@/components/Navbar';
 
 const SECRET_KEY = process.env.NEXT_PUBLIC_UUID_SECRET || "default_secret_key";
 const indianStates = [
@@ -405,6 +406,8 @@ const RequestDonor = () => {
   };
 
   return (
+    <>
+    <Navbar/>
     <div className="min-h-screen bg-gradient-to-b from-red-50 to-white py-12">
       <div className="container mx-auto px-4 max-w-2xl">
         <h1 className="text-4xl font-bold text-center mb-8 text-red-700">
@@ -707,6 +710,7 @@ const RequestDonor = () => {
         </Card>
       </div>
     </div>
+    </>
   );
 };
 

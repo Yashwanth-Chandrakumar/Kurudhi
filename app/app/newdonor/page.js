@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import Navbar from '@/components/Navbar';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -286,6 +287,8 @@ export default function BecomeDonor() {
   };
 
   return (
+    <>
+    <Navbar/>
     <div className="min-h-screen bg-gradient-to-b from-red-50 to-white py-12">
       <div className="container mx-auto px-4 max-w-2xl">
         <h1 className="text-4xl font-bold text-center mb-8 text-red-700">
@@ -551,5 +554,6 @@ export default function BecomeDonor() {
         </Card>
       </div>
     </div>
+    </>
   );
 }

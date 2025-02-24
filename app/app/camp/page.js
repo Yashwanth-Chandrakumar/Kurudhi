@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import Navbar from '@/components/Navbar';
 
 const indianStates = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
@@ -390,6 +391,8 @@ const HostBloodCamp = () => {
   };
 
   return (
+    <>
+      <Navbar/>
     <div className="min-h-screen bg-gradient-to-b from-red-50 to-white py-12">
       <div className="container mx-auto px-4 max-w-2xl">
         <h1 className="text-4xl font-bold text-center mb-8 text-red-700">
@@ -714,7 +717,7 @@ const HostBloodCamp = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </div></>
   );
 };
 

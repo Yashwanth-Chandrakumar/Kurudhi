@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useRouter } from 'next/navigation';
 import { UserCircle } from 'lucide-react';
+import Navbar from '@/components/Navbar';
 
 const tamilNaduCities = [
   "Ambur", "Chennai", "Coimbatore", "Cuddalore", "Dindigul", "Erode", "Hosur",
@@ -113,6 +114,9 @@ export default function ProfilePage() {
   const labelClasses = "block text-sm font-medium text-gray-700 mb-1";
 
   return (
+    <>
+    <Navbar/>
+    
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="max-w-3xl mx-auto shadow-lg">
         <CardHeader className="border-b border-gray-200 bg-white rounded-t-lg">
@@ -352,5 +356,6 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
     </div>
+    </>
   );
 }
