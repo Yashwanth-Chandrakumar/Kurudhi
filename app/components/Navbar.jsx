@@ -2,13 +2,12 @@
 import { useAuth } from "@/context/AuthContext";
 import CryptoJS from "crypto-js";
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { doc, getDoc, getFirestore } from "firebase/firestore";
+import { doc, getDoc, getFirestore, collection, query, where, getDocs } from "firebase/firestore";
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-// Firebase configuration (ensure these match your project settings)
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -25,18 +24,25 @@ const db = getFirestore(app);
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [userRole, setUserRole] = useState(null);
+  const [isDonor, setIsDonor] = useState(true); // Default to true to hide "Become a Donor"
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const { user, logout } = useAuth();
   const router = useRouter();
 
+  const handleLogout = async () => {
+    await logout();
+    setShowLogoutConfirm(false);
+    setShowProfileDropdown(false);
+  };
+
   const handleAuthClick = async () => {
-    if (user) {
-      await logout();
-    } else {
+    if (!user) {
       router.push("/signin");
     }
   };
 
-  // On component mount, decrypt the stored UID and check Firestore "users" collection for the user's role
+  // Check user role
   useEffect(() => {
     const checkUserRole = async () => {
       const encryptedUID = localStorage.getItem("userUUID");
@@ -50,7 +56,7 @@ const Navbar = () => {
             const userDocSnap = await getDoc(userDocRef);
             if (userDocSnap.exists()) {
               const data = userDocSnap.data();
-              setUserRole(data.role); // Expected to be "admin", "superadmin", or "user"
+              setUserRole(data.role);
             } else {
               setUserRole(null);
             }
@@ -64,10 +70,31 @@ const Navbar = () => {
     checkUserRole();
   }, []);
 
+  // Check donor status
+  useEffect(() => {
+    const checkIfDonor = async () => {
+      if (!user || !user.email) {
+        setIsDonor(true); // Default to true to hide "Become a Donor"
+        return;
+      }
+
+      try {
+        const q = query(collection(db, "donors"), where("Email", "==", user.email));
+        const snapshot = await getDocs(q);
+        setIsDonor(!snapshot.empty); // Hide if user exists in donors collection
+      } catch (error) {
+        console.error("Error checking donor status:", error);
+        setIsDonor(true); // Default to true on error
+      }
+    };
+
+    checkIfDonor();
+  }, [user]);
+
   return (
     <nav className="bg-red-600 shadow-lg">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-16 relative">
           {/* Logo and Brand */}
           <div className="flex-shrink-0 flex items-center">
             <span className="text-white text-xl font-bold">Kurudhi Kodai</span>
@@ -75,41 +102,82 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            <Link href="/" className="text-white hover:text-red-200 px-3 py-2 text-sm font-medium">
+            <Link href="/" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
               Home
             </Link>
-            <Link href="/dashboard" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
-                Dashboard
-              </Link>
-            <Link href="/about" className="text-white hover:text-red-200 px-3 py-2 text-sm font-medium">
+            <Link
+              href="/dashboard"
+              className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium"
+            >
+              Dashboard
+            </Link>
+            <Link href="/about" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
               About
             </Link>
-            <Link href="/newdonor" className="text-white hover:text-red-200 px-3 py-2 text-sm font-medium">
-              Become a Donor
-            </Link>
-            <Link href="/needdonor" className="text-white hover:text-red-200 px-3 py-2 text-sm font-medium">
+            {user && !isDonor && (
+              <Link
+                href="/newdonor"
+                className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium"
+              >
+                Become a Donor
+              </Link>
+            )}
+            <Link href="/needdonor" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
               Require a Donor
             </Link>
-            <Link href="/camp" className="text-white hover:text-red-200 px-3 py-2 text-sm font-medium">
+            <Link href="/camp" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
               Host a Camp
             </Link>
-            {/* Conditionally render the role-based option */}
             {userRole === "admin" && (
-              <Link href="/admin" className="text-white hover:text-red-200 px-3 py-2 text-sm font-medium">
+              <Link
+                href="/admin"
+                className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium"
+              >
                 View as Admin
               </Link>
             )}
             {userRole === "superadmin" && (
-              <Link href="/superadmin" className="text-white hover:text-red-200 px-3 py-2 text-sm font-medium">
+              <Link
+                href="/superadmin"
+                className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium"
+              >
                 View as Super Admin
               </Link>
             )}
-            <button
-              onClick={handleAuthClick}
-              className="bg-white text-red-600 hover:bg-red-100 px-4 py-2 rounded-md text-sm font-medium"
-            >
-              {user ? "Logout" : "Login / Sign up"}
-            </button>
+            {user ? (
+              <div className="relative">
+                <button
+                  onClick={() => setShowProfileDropdown((prev) => !prev)}
+                  className="bg-white text-red-600 hover:bg-red-100 px-4 py-2 rounded-md text-sm font-medium"
+                >
+                  {user.email}
+                </button>
+                {showProfileDropdown && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow-lg z-50">
+                    <Link
+                      href="/profile"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setShowProfileDropdown(false)}
+                    >
+                      Profile
+                    </Link>
+                    <button
+                      onClick={() => setShowLogoutConfirm(true)}
+                      className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={handleAuthClick}
+                className="bg-white text-red-600 hover:bg-red-100 px-4 py-2 rounded-md text-sm font-medium"
+              >
+                Login / Sign up
+              </button>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -136,36 +204,99 @@ const Navbar = () => {
               <Link href="/about" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
                 About
               </Link>
-              <Link href="/newdonor" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
-                Become a Donor
-              </Link>
+              {user && !isDonor && (
+                <Link
+                  href="/newdonor"
+                  className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium"
+                >
+                  Become a Donor
+                </Link>
+              )}
               <Link href="/needdonor" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
                 Require a Donor
               </Link>
-              <Link href="/camp" className="text-white hover:text-red-200 px-3 py-2 text-sm font-medium">
-              Host a Camp
-            </Link>
-              {/* Conditionally render role-based option for mobile */}
+              <Link href="/camp" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
+                Host a Camp
+              </Link>
               {userRole === "admin" && (
-                <Link href="/admin" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
+                <Link
+                  href="/admin"
+                  className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium"
+                >
                   View as Admin
                 </Link>
               )}
               {userRole === "superadmin" && (
-                <Link href="/superadmin" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
+                <Link
+                  href="/superadmin"
+                  className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium"
+                >
                   View as Super Admin
                 </Link>
               )}
-              <button
-                onClick={handleAuthClick}
-                className="w-full text-center bg-white text-red-600 hover:bg-red-100 px-4 py-2 rounded-md text-base font-medium"
-              >
-                {user ? "Logout" : "Login / Sign up"}
-              </button>
+              {user ? (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowProfileDropdown((prev) => !prev)}
+                    className="w-full text-center bg-white text-red-600 hover:bg-red-100 px-4 py-2 rounded-md text-base font-medium"
+                  >
+                    {user.email}
+                  </button>
+                  {showProfileDropdown && (
+                    <div className="absolute right-0 mt-2 w-full bg-white border rounded shadow-lg z-50">
+                      <Link
+                        href="/profile"
+                        className="block px-3 py-2 text-base text-gray-700 hover:bg-gray-100"
+                        onClick={() => setShowProfileDropdown(false)}
+                      >
+                        Profile
+                      </Link>
+                      <button
+                        onClick={() => setShowLogoutConfirm(true)}
+                        className="w-full text-left block px-3 py-2 text-base text-gray-700 hover:bg-gray-100"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={handleAuthClick}
+                  className="w-full text-center bg-white text-red-600 hover:bg-red-100 px-4 py-2 rounded-md text-base font-medium"
+                >
+                  Login / Sign up
+                </button>
+              )}
             </div>
           </div>
         )}
       </div>
+
+      {/* Logout Confirmation Dialog */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="absolute inset-0 bg-black opacity-50"></div>
+          <div className="bg-white rounded-lg p-6 relative z-10 w-80">
+            <h2 className="text-lg font-semibold mb-4">Confirm Logout</h2>
+            <p className="mb-4">Are you sure you want to logout?</p>
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </nav>
   );
 };

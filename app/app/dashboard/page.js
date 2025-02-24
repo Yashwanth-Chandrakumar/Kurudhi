@@ -214,7 +214,6 @@ export default function DonorDashboard() {
           ) : (
             <div className="mt-4 p-4 bg-gray-100 rounded">
               <p><strong>Your OTP:</strong> {donation.donorOtp}</p>
-              <p><strong>Requester's OTP:</strong> {donation.requesterOtp}</p>
               <Input
                 type="text"
                 value={enteredOtp}
@@ -228,9 +227,14 @@ export default function DonorDashboard() {
             </div>
           )
         ) : (
-          <Button onClick={handleDonateClick} className="mt-2" disabled={!canDonate()}>
-            {canDonate() ? 'Donate Blood' : 'Cannot Donate (Wait 30 Days)'}
-          </Button>
+          // Instead of always showing the Donate button, check blood group match.
+          donorRecord && donorRecord.BloodGroup === request.BloodGroup ? (
+            <Button onClick={handleDonateClick} className="mt-2" disabled={!canDonate()}>
+              {canDonate() ? 'Donate Blood' : 'Cannot Donate (Wait 30 Days)'}
+            </Button>
+          ) : (
+            <p className="mt-2 text-gray-500">Blood group mismatch. You cannot donate.</p>
+          )
         )}
       </div>
     );
@@ -295,14 +299,14 @@ export default function DonorDashboard() {
 
       return (
         <div className="p-2 border rounded my-2">
-          <p className='flex justify-around items-center'>
+          <p className="flex justify-around items-center">
             <strong>Donor:</strong>{' '}
             {donorDetails
               ? `${donorDetails.Name || ''} ${donorDetails.MobileNumber ? '- ' + donorDetails.MobileNumber : ''}`
               : donation.donorId}
-              <Button onClick={() => setShowMoreModal(true)} className="mt-2">
-            More
-          </Button>
+            <Button onClick={() => setShowMoreModal(true)} className="mt-2">
+              More
+            </Button>
           </p>
           <p><strong>Your OTP:</strong> {donation.requesterOtp}</p>
           {!donation.requesterOtpVerified && (

@@ -1,10 +1,19 @@
-'use client'
+'use client';
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import CryptoJS from "crypto-js";
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  query,
+  where,
+  getDocs
+} from "firebase/firestore";
 
 const SECRET_KEY = process.env.NEXT_PUBLIC_UUID_SECRET || "default_secret_key";
 
@@ -19,7 +28,6 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 
@@ -36,13 +44,13 @@ export default function SignIn() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Encrypts and stores the user's UID in localStorage
+  // Encrypt and store the user's UID in localStorage
   const storeEncryptedUUID = (uid) => {
     const encryptedUID = CryptoJS.AES.encrypt(uid, SECRET_KEY).toString();
     localStorage.setItem("userUUID", encryptedUID);
   };
 
-  // Checks whether the user document exists in "users" collection; if not, add it with a default role of "user"
+  // Check whether the user document exists in "users" collection; if not, add it with a default role of "user"
   const checkAndAddUser = async (userCredential) => {
     const uid = userCredential.uid;
     const userDocRef = doc(db, "users", uid);
@@ -51,9 +59,16 @@ export default function SignIn() {
       await setDoc(userDocRef, {
         uid,
         email: userCredential.email,
-        role: "user"
+        role: "user",
       });
     }
+  };
+
+  // After signin, check if donor record exists using the user's email.
+  const checkDonorRecord = async (email) => {
+    const donorQuery = query(collection(db, "donors"), where("Email", "==", email));
+    const donorSnapshot = await getDocs(donorQuery);
+    return !donorSnapshot.empty;
   };
 
   const handleSubmit = async (e) => {
@@ -65,7 +80,13 @@ export default function SignIn() {
       const uid = userCredential.uid;
       storeEncryptedUUID(uid);
       await checkAndAddUser(userCredential);
-      router.push("/");
+      // Check donor record by email; if not present, redirect to newdonor page.
+      const isDonor = await checkDonorRecord(formData.email);
+      if (!isDonor) {
+        router.push("/newdonor");
+      } else {
+        router.push("/");
+      }
     } catch (error) {
       setError(error.message);
     }
@@ -74,11 +95,16 @@ export default function SignIn() {
   const handleGoogleSignIn = async () => {
     try {
       const userCredential = await googleSignIn();
-      console.log("userCredential", userCredential);
       const uid = userCredential.uid;
       storeEncryptedUUID(uid);
       await checkAndAddUser(userCredential);
-      router.push("/");
+      // Check donor record by email
+      const isDonor = await checkDonorRecord(userCredential.email);
+      if (!isDonor) {
+        router.push("/newdonor");
+      } else {
+        router.push("/");
+      }
     } catch (error) {
       setError(error.message);
     }
