@@ -1,6 +1,6 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
@@ -16,9 +16,9 @@ import {
   getDocs
 } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import Navbar from '@/components/Navbar';
+import { Info } from 'lucide-react';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -33,14 +33,63 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 
-export default function DonorDashboard() {
+/* 
+  OtpInput Component:
+  Renders 6 individual input boxes for OTP entry.
+  Auto-advances focus on digit entry and shifts focus on Backspace.
+  The onChange callback returns the concatenated OTP.
+*/
+function OtpInput({ length = 6, onChange, inputClassName = "w-12 h-12 text-center border border-white rounded-lg bg-white text-red-700 shadow-md" }) {
+  const [otp, setOtp] = useState(Array(length).fill(''));
+  const inputsRef = useRef([]);
+
+  useEffect(() => {
+    onChange(otp.join(''));
+  }, [otp, onChange]);
+
+  const handleChange = (e, index) => {
+    const val = e.target.value;
+    if (/^\d*$/.test(val)) {
+      const newOtp = [...otp];
+      newOtp[index] = val.slice(-1);
+      setOtp(newOtp);
+      if (val && index < length - 1) {
+        inputsRef.current[index + 1].focus();
+      }
+    }
+  };
+
+  const handleKeyDown = (e, index) => {
+    if (e.key === 'Backspace' && otp[index] === '' && index > 0) {
+      inputsRef.current[index - 1].focus();
+    }
+  };
+
+  return (
+    <div className="flex space-x-2">
+      {otp.map((digit, index) => (
+        <input
+          key={index}
+          type="text"
+          inputMode="numeric"
+          maxLength={1}
+          className={inputClassName}
+          value={digit}
+          onChange={(e) => handleChange(e, index)}
+          onKeyDown={(e) => handleKeyDown(e, index)}
+          ref={(el) => inputsRef.current[index] = el}
+        />
+      ))}
+    </div>
+  );
+}
+
+export default function DashboardPage() {
   const { user } = useAuth();
   const [ongoingRequests, setOngoingRequests] = useState([]);
-  const [myRequests, setMyRequests] = useState([]);
-  const [activeTab, setActiveTab] = useState('accepted'); // For My Requests
   const [donorRecord, setDonorRecord] = useState(null);
 
-  // Fetch donor record using user email
+  // Fetch donor record based on user's email
   useEffect(() => {
     if (user && user.email) {
       const q = query(collection(db, 'donors'), where('Email', '==', user.email));
@@ -70,7 +119,7 @@ export default function DonorDashboard() {
     }
   };
 
-  // Check donation completion and update request status if needed
+  // Check donation completion and update status if needed
   const checkDonationCompletion = async (requestId) => {
     const donationsRef = collection(db, 'requests', requestId, 'donations');
     const verifiedQuery = query(
@@ -84,7 +133,6 @@ export default function DonorDashboard() {
     const requestSnap = await getDoc(requestRef);
     if (!requestSnap.exists()) return;
     const requestData = requestSnap.data();
-
     await updateDoc(requestRef, { UnitsDonated: verifiedCount });
     if (verifiedCount >= requestData.UnitsNeeded) {
       await updateDoc(requestRef, { Verified: "completed" });
@@ -92,7 +140,7 @@ export default function DonorDashboard() {
     }
   };
 
-  // Listen for accepted requests
+  // Listen for accepted requests (ongoingRequests)
   useEffect(() => {
     if (!user) return;
     const q = query(collection(db, 'requests'), where('Verified', '==', 'accepted'));
@@ -102,20 +150,7 @@ export default function DonorDashboard() {
     return () => unsubscribe();
   }, [user]);
 
-  // Listen for requests raised by the current user
-  useEffect(() => {
-    if (!user) return;
-    const q = query(collection(db, 'requests'), where('uuid', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setMyRequests(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  // Utility for generating OTP
-  const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
-
-  // ----------------- Donor Side Component -----------------
+  // DonorRequestCard displays a single request with donation details
   function DonorRequestCard({ request, donorRecord }) {
     const [donation, setDonation] = useState(null);
     const [enteredOtp, setEnteredOtp] = useState('');
@@ -146,12 +181,13 @@ export default function DonorDashboard() {
       return () => unsubscribe();
     }, [request.id, user.uid]);
 
+    const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+
     const handleDonateClick = async () => {
       if (!canDonate()) {
         alert('You cannot donate within 30 days of your last donation.');
         return;
       }
-      // If blood group mismatches, we already show a note instead of button.
       const donorOtp = generateOTP();
       const requesterOtp = generateOTP();
       try {
@@ -176,7 +212,6 @@ export default function DonorDashboard() {
           await updateDoc(donationRef, { donorOtpVerified: true });
           alert('OTP verified successfully.');
           checkDonationCompletion(request.id);
-          // Update donor record with lastDonated date
           if (user.email) {
             const donorQuery = query(collection(db, 'donors'), where('Email', '==', user.email));
             const donorSnapshot = await getDocs(donorQuery);
@@ -195,251 +230,74 @@ export default function DonorDashboard() {
     };
 
     return (
-      <div className="bg-white p-6 rounded-lg shadow-lg mb-6 transition hover:shadow-2xl">
-        <p className="text-xl font-semibold text-gray-800">{request.PatientName}</p>
-        <p className="mt-1 text-gray-600"><strong>Blood Group:</strong> {request.BloodGroup}</p>
-        <p className="mt-1 text-gray-600"><strong>Units Needed:</strong> {request.UnitsNeeded}</p>
-        <p className="mt-1 text-gray-600"><strong>Units Donated:</strong> {request.UnitsDonated || 0}</p>
-        <p className="mt-2">
+      <div className="bg-white p-8 rounded-xl shadow-2xl mb-8 transition transform hover:scale-105">
+        <h2 className="text-2xl font-bold text-red-700 mb-2">{request.PatientName}</h2>
+        <p className="text-gray-700"><strong>Blood Group:</strong> {request.BloodGroup}</p>
+        <p className="text-gray-700"><strong>Units Needed:</strong> {request.UnitsNeeded}</p>
+        <p className="text-gray-700"><strong>Units Donated:</strong> {request.UnitsDonated || 0}</p>
+        <p className="mt-4">
           <strong>Status:</strong>{' '}
-          <span className={`${getStatusColor(request.Verified)} px-3 py-1 rounded-full text-sm`}>
-            {request.Verified}
+          <span className={`${getStatusColor(request.Verified)} px-4 py-1 rounded-full text-sm`}>
+            {request.Verified === 'received' ? 'Pending' : request.Verified}
           </span>
         </p>
         {donation ? (
           donation.donorOtpVerified ? (
-            <div className="mt-4 p-4 bg-green-50 rounded border border-green-200">
-              <p className="text-green-800"><strong>Your OTP:</strong> {donation.donorOtp}</p>
-              <p className="font-bold">Donation Verified</p>
+            <div className="mt-6 p-4 bg-green-100 border border-green-300 rounded">
+              <p className="text-green-800 font-bold text-center">Donation completed</p>
+              <p className="text-green-800 text-center text-sm mt-1"><strong>Your OTP:</strong> {donation.donorOtp}</p>
             </div>
           ) : (
-            <div className="mt-4 p-4 bg-yellow-50 rounded border border-yellow-200">
-              <p className="text-yellow-800"><strong>Your OTP:</strong> {donation.donorOtp}</p>
-              <Input
-                type="text"
-                value={enteredOtp}
-                onChange={(e) => setEnteredOtp(e.target.value)}
-                placeholder="Enter Requester's OTP"
-                className="mt-2 border border-gray-300 rounded px-3 py-2"
-              />
-              <Button onClick={handleVerifyRequesterOtp} className="mt-2 bg-red-700 text-white px-4 py-2 rounded-full hover:bg-red-800 transition-colors">
+            <div className="mt-6 p-4 bg-yellow-100 border border-yellow-300 rounded">
+              <p className="text-yellow-800 mb-3 text-center"><strong>Your OTP:</strong> {donation.donorOtp}</p>
+              <OtpInput onChange={setEnteredOtp} />
+              <Button
+                onClick={handleVerifyRequesterOtp}
+                className="mt-4 w-full bg-red-600 text-white py-3 rounded-full hover:bg-red-700 transition-colors"
+              >
                 Verify Requester's OTP
               </Button>
             </div>
           )
         ) : (
           donorRecord && donorRecord.BloodGroup === request.BloodGroup ? (
-            <Button onClick={handleDonateClick} className="mt-4 bg-red-700 text-white px-6 py-3 rounded-full font-semibold hover:bg-red-800 transition-colors" disabled={!canDonate()}>
+            <Button 
+              onClick={handleDonateClick} 
+              className="mt-6 w-full bg-red-600 text-white py-3 rounded-full font-semibold hover:bg-red-700 transition-colors" 
+              disabled={!canDonate()}
+            >
               {canDonate() ? 'Donate Blood' : 'Cannot Donate (Wait 30 Days)'}
             </Button>
           ) : (
-            <p className="mt-4 text-sm text-gray-500">Blood group mismatch. You cannot donate.</p>
+            <p className="mt-6 text-center text-sm text-gray-500">Blood group mismatch. You cannot donate.</p>
           )
         )}
       </div>
     );
   }
 
-  // ----------------- Requester Side Component -----------------
-  function RequesterRequestCard({ request }) {
-    const [donations, setDonations] = useState([]);
-    const [showDonorModal, setShowDonorModal] = useState(false);
-
-    useEffect(() => {
-      const q = query(collection(db, 'requests', request.id, 'donations'));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setDonations(docs);
-      });
-      return () => unsubscribe();
-    }, [request.id]);
-
-    const handleVerifyDonorOtp = async (donation, enteredOtp) => {
-      if (enteredOtp === donation.donorOtp) {
-        try {
-          const donationRef = doc(db, 'requests', request.id, 'donations', donation.id);
-          await updateDoc(donationRef, { requesterOtpVerified: true });
-          alert('OTP verified successfully.');
-          checkDonationCompletion(request.id);
-        } catch (error) {
-          console.error('Error verifying donor OTP:', error);
-        }
-      } else {
-        alert('Incorrect OTP entered.');
-      }
-    };
-
-    function DonationItem({ donation }) {
-      const [donorDetails, setDonorDetails] = useState(null);
-      const [enteredOtp, setEnteredOtp] = useState('');
-      const [showMoreModal, setShowMoreModal] = useState(false);
-
-      useEffect(() => {
-        const fetchDonorDetails = async () => {
-          const userDoc = await getDoc(doc(db, 'users', donation.donorId));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            if (userData.email) {
-              const q = query(collection(db, 'donors'), where('Email', '==', userData.email));
-              const donorSnapshot = await getDocs(q);
-              if (!donorSnapshot.empty) {
-                const donorDoc = donorSnapshot.docs[0];
-                setDonorDetails(donorDoc.data());
-              } else {
-                setDonorDetails({ email: userData.email });
-              }
-            }
-          }
-        };
-        fetchDonorDetails();
-      }, [donation.donorId]);
-
-      return (
-        <div className="p-4 border rounded-lg my-3 bg-white shadow">
-          <div className="flex justify-between items-center">
-            <p className="font-semibold text-gray-800">
-              Donor: {donorDetails ? `${donorDetails.Name || ''} ${donorDetails.MobileNumber ? '- ' + donorDetails.MobileNumber : ''}` : donation.donorId}
-            </p>
-            <Button onClick={() => setShowMoreModal(true)} className="bg-red-700 text-white px-4 py-1 rounded-full hover:bg-red-800 transition-colors">
-              More
-            </Button>
-          </div>
-          <p className="mt-2 text-gray-600"><strong>Your OTP:</strong> {donation.requesterOtp}</p>
-          {!donation.requesterOtpVerified && (
-            <div className="mt-2">
-              <Input
-                type="text"
-                value={enteredOtp}
-                onChange={(e) => setEnteredOtp(e.target.value)}
-                placeholder="Enter Donor OTP"
-                className="border border-gray-300 rounded px-3 py-2"
-              />
-              <Button onClick={() => handleVerifyDonorOtp(donation, enteredOtp)} className="mt-2 bg-red-700 text-white px-4 py-2 rounded-full hover:bg-red-800 transition-colors">
-                Verify Donor OTP
-              </Button>
-            </div>
-          )}
-          <Dialog open={showMoreModal} onOpenChange={setShowMoreModal}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Complete Donor Details</DialogTitle>
-              </DialogHeader>
-              {donorDetails ? (
-                <div className="space-y-2">
-                  {Object.entries(donorDetails).map(([key, value]) => (
-                    <div key={key}>
-                      <strong>{key}:</strong> {value.toString()}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p>No additional details found.</p>
-              )}
-              <Button onClick={() => setShowMoreModal(false)} className="mt-4 bg-red-700 text-white px-4 py-2 rounded-full hover:bg-red-800 transition-colors">
-                Close
-              </Button>
-            </DialogContent>
-          </Dialog>
-        </div>
-      );
-    }
-
-    return (
-      <div className="bg-white p-6 rounded-lg shadow-lg mb-6 transition hover:shadow-2xl">
-        <p className="text-xl font-semibold text-gray-800">{request.PatientName}</p>
-        <p className="mt-1 text-gray-600"><strong>Blood Group:</strong> {request.BloodGroup}</p>
-        <p className="mt-1 text-gray-600"><strong>Units Needed:</strong> {request.UnitsNeeded}</p>
-        <p className="mt-1 text-gray-600"><strong>Units Donated:</strong> {request.UnitsDonated || 0}</p>
-        <p className="mt-2">
-          <strong>Status:</strong>{' '}
-          <span className={`${getStatusColor(request.Verified)} px-3 py-1 rounded-full text-sm`}>
-            {request.Verified}
-          </span>
-        </p>
-        <Button onClick={() => setShowDonorModal(true)} className="mt-4 bg-red-700 text-white px-6 py-3 rounded-full font-semibold hover:bg-red-800 transition-colors">
-          View Donors
-        </Button>
-
-        <Dialog open={showDonorModal} onOpenChange={(open) => setShowDonorModal(open)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Donor Details for {request.PatientName}</DialogTitle>
-            </DialogHeader>
-            {donations.length > 0 ? (
-              donations.map(donation => (
-                <DonationItem key={donation.id} donation={donation} />
-              ))
-            ) : (
-              <p className="mt-4 text-gray-600">No donations yet.</p>
-            )}
-            <Button onClick={() => setShowDonorModal(false)} className="mt-4 bg-red-700 text-white px-6 py-3 rounded-full hover:bg-red-800 transition-colors">
-              Close
-            </Button>
-          </DialogContent>
-        </Dialog>
-      </div>
-    );
-  }
-
-  // -------------------- My Requests Tabs --------------------
-  const tabStatuses = ['accepted', 'rejected', 'completed', 'received', 'unknown'];
-  const filteredRequests = myRequests.filter(req => {
-    const status = req.Verified || 'unknown';
-    return status === activeTab;
-  });
-
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Header */}
-      <Navbar/>
-      <header className="bg-gradient-to-r from-red-700 to-red-900 text-white py-6 shadow-lg">
+    <div className="min-h-screen bg-red-50">
+      <Navbar />
+      <header className="bg-gradient-to-r from-red-600 to-red-900 text-white py-10 shadow-lg">
         <div className="container mx-auto px-4 text-center">
-          <h1 className="text-3xl md:text-4xl font-bold">Donor Dashboard</h1>
-          <p className="mt-2 text-lg">Manage your donations and view requests</p>
+          <h1 className="text-4xl md:text-5xl font-extrabold">Donor Dashboard</h1>
+          <p className="mt-4 text-xl">Manage your donations and view accepted requests</p>
         </div>
       </header>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        {/* Section 1: Accepted Requests (Donor Side) */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Current Requests</h2>
+      <main className="min-h-screen container mx-auto px-4 py-12">
+        <section>
+          <h2 className="text-3xl font-bold text-red-700 mb-6 text-center">Current Requests</h2>
           {ongoingRequests.length === 0 ? (
-            <p className="text-gray-600">No accepted requests available.</p>
+            <p className="text-center text-gray-600 text-xl">No accepted requests available.</p>
           ) : (
             ongoingRequests.map(request => (
               <DonorRequestCard key={request.id} request={request} donorRecord={donorRecord} />
             ))
           )}
         </section>
-
-        {/* Section 2: My Requests (Requester Side) */}
-        <section>
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">My Requests</h2>
-          <div className="flex flex-wrap gap-3 mb-6">
-            {tabStatuses.map(status => (
-              <Button
-                key={status}
-                variant={activeTab === status ? 'default' : 'outline'}
-                onClick={() => setActiveTab(status)}
-                className={`rounded-full px-5 py-2 transition-colors ${activeTab === status ? 'bg-red-700 text-white' : 'border border-red-700 text-red-700 hover:bg-red-700 hover:text-white'}`}
-              >
-                {status.charAt(0).toUpperCase() + status.slice(1)}
-              </Button>
-            ))}
-          </div>
-          {filteredRequests.length === 0 ? (
-            <p className="text-gray-600">No {activeTab} requests available.</p>
-          ) : (
-            filteredRequests.map(request => (
-              <RequesterRequestCard key={request.id} request={request} />
-            ))
-          )}
-        </section>
       </main>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-8">
+      <footer className="bg-red-800 text-white py-6">
         <div className="container mx-auto px-4 text-center">
           <p className="text-sm">&copy; {new Date().getFullYear()} Kurudhi Kodai. All rights reserved.</p>
         </div>

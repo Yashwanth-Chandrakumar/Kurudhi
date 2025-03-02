@@ -1,15 +1,17 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState } from 'react';
 import { auth } from '@/firebase/config';
-import { 
-  signInWithEmailAndPassword, 
+import {
   createUserWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
   GoogleAuthProvider,
-  signInWithPopup, sendEmailVerification
+  onAuthStateChanged,
+  sendEmailVerification,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut
 } from 'firebase/auth';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 const AuthContext = createContext();
 
@@ -57,8 +59,13 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const logout = () => signOut(auth);
-
+  const router = useRouter();
+  // ...
+  const logout = () => {
+    signOut(auth);
+    router.push('/signin');
+  };
+  
   return (
     <AuthContext.Provider value={{ user, signup, signin, googleSignIn, logout }}>
       {!loading && children}

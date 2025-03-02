@@ -7,13 +7,13 @@ import {
   query,
   where,
   onSnapshot,
-  addDoc,
   updateDoc,
   doc,
   getDoc,
   getDocs
 } from 'firebase/firestore'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import {
   Dialog,
   DialogContent,
@@ -40,13 +40,12 @@ const db = getFirestore(app)
 export default function AdminDashboard() {
   const router = useRouter()
 
-  // States for various collections
+  // Collections
   const [requests, setRequests] = useState([])
   const [donors, setDonors] = useState([])
   const [camps, setCamps] = useState([])
-  const [users, setUsers] = useState([]) // New state for users
 
-  // Stats for cards – including request stats, donor count, and camp stats
+  // Stats for cards
   const [stats, setStats] = useState({
     totalRequests: 0,
     currentRequests: 0,
@@ -59,30 +58,20 @@ export default function AdminDashboard() {
     completedCamps: 0
   })
 
-  // Pagination for table views
+  // Main tab state (sidebar)
+  const [activeTab, setActiveTab] = useState('requests') // 'requests', 'camps', 'donors'
+  // Sub-tab states (displayed inside main content)
+  const [activeRequestFilter, setActiveRequestFilter] = useState('received') // Options: received, accepted, completed, rejected, all
+  const [activeCampFilter, setActiveCampFilter] = useState('all') // Options: all, upcoming, ongoing, completed
+
+  // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
 
-  // activeTab: "requests", "donors", or "camps"
-  const [activeTab, setActiveTab] = useState('requests')
-  // For requests, add an extra filter: one of "all", "received", "accepted", "completed", "rejected"
-  const [activeRequestFilter, setActiveRequestFilter] = useState('all')
-  // For camps, we already have activeCampFilter
-  const [activeCampFilter, setActiveCampFilter] = useState('all')
-
-  // For viewing more details in a modal
+  // Modal states for details and confirmations
   const [selectedItem, setSelectedItem] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalType, setModalType] = useState(null)
-  // New state: store donations connected to a request when viewing details
-  const [requestDonations, setRequestDonations] = useState([])
-  // State to store additional user details if needed
-  const [userDetails, setUserDetails] = useState(null)
-
-  // State for mobile sidebar
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-
-  // Confirmation modal state for Accept/Reject actions
   const [confirmModal, setConfirmModal] = useState({
     open: false,
     action: '',
@@ -90,50 +79,10 @@ export default function AdminDashboard() {
     message: ''
   })
 
-  // Helper function to determine status color based on request.Verified value
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'accepted':
-        return 'bg-yellow-200 text-yellow-800'
-      case 'completed':
-        return 'bg-green-200 text-green-800'
-      case 'rejected':
-        return 'bg-red-200 text-red-800'
-      case 'received':
-        return 'bg-blue-200 text-blue-800'
-      default:
-        return 'bg-gray-200 text-gray-800'
-    }
-  }
+  // Mobile sidebar state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
-  // Recalculate donation count for a request and update status to completed if needed
-  const checkDonationCompletion = async (requestId) => {
-    try {
-      const donationsRef = collection(db, 'requests', requestId, 'donations')
-      const verifiedQuery = query(
-        donationsRef,
-        where('donorOtpVerified', '==', true),
-        where('requesterOtpVerified', '==', true)
-      )
-      const snapshot = await getDocs(verifiedQuery)
-      const verifiedCount = snapshot.size
-
-      const requestRef = doc(db, 'requests', requestId)
-      const requestSnap = await getDoc(requestRef)
-      if (!requestSnap.exists()) return
-      const requestData = requestSnap.data()
-
-      await updateDoc(requestRef, { UnitsDonated: verifiedCount })
-      if (verifiedCount >= requestData.UnitsNeeded) {
-        await updateDoc(requestRef, { Verified: "completed" })
-        alert('Blood request has been completed.')
-      }
-    } catch (error) {
-      console.error('Error in checkDonationCompletion:', error)
-    }
-  }
-
-  // Listen for blood requests in real time
+  // Fetch blood requests in real time
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'requests'), (snapshot) => {
       const requestsList = snapshot.docs.map(doc => ({
@@ -169,18 +118,6 @@ export default function AdminDashboard() {
     return () => unsubscribe()
   }, [])
 
-  // Fetch users in real time (new listener)
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
-      const usersList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
-      setUsers(usersList)
-    })
-    return () => unsubscribe()
-  }, [])
-
   // Fetch camps in real time  
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'camps'), (snapshot) => {
@@ -210,54 +147,7 @@ export default function AdminDashboard() {
     return () => unsubscribe()
   }, [])
 
-  // Function to open the details modal
-  const openDetailsModal = async (item, type) => {
-    setSelectedItem(item)
-    setModalType(type)
-    setIsModalOpen(true)
-    if (type === 'request') {
-      // Fetch user details if available
-      if (item.uuid) {
-        try {
-          const userRef = doc(db, 'users', item.uuid)
-          const userSnap = await getDoc(userRef)
-          if (userSnap.exists()) {
-            setUserDetails(userSnap.data())
-          } else {
-            setUserDetails({ error: 'No user details found' })
-          }
-        } catch (error) {
-          console.error("Error fetching user details:", error)
-          setUserDetails({ error: 'Failed to fetch user details' })
-        }
-      } else {
-        setUserDetails(null)
-      }
-      // Fetch connected donation records for this request
-      try {
-        const donationsSnapshot = await getDocs(collection(db, 'requests', item.id, 'donations'))
-        const donationsList = donationsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-        setRequestDonations(donationsList)
-      } catch (error) {
-        console.error("Error fetching donations:", error)
-        setRequestDonations([])
-      }
-    } else {
-      setUserDetails(null)
-    }
-  }
-
-  // Function to handle confirmation actions (Accept/Reject) for requests
-  const handleConfirmAction = (id, action) => {
-    setConfirmModal({
-      open: true,
-      action, // 'accepted' or 'rejected'
-      requestId: id,
-      message: `Are you sure you want to ${action} this request?`
-    })
-  }
-
-  // Update request status (called after confirmation)
+  // Update request status function with confirmation
   const updateRequestStatus = async (id, status) => {
     try {
       const requestRef = doc(db, 'requests', id)
@@ -274,39 +164,52 @@ export default function AdminDashboard() {
     }
   }
 
-  // Filter data for the main table (pagination)
+  // Opens the confirmation modal for any action
+  const handleConfirmAction = (id, action) => {
+    setConfirmModal({
+      open: true,
+      action,
+      requestId: id,
+      message: `Are you sure you want to ${action} this request?`
+    })
+  }
+
+  // Open details modal for an item
+  const openDetailsModal = (item, type) => {
+    setSelectedItem(item)
+    setModalType(type)
+    setIsModalOpen(true)
+  }
+
+  // Handle sidebar clicks (mobile and desktop)
+  const handleSidebarClick = (tab) => {
+    setActiveTab(tab)
+    setCurrentPage(1)
+    // Reset sub-filters when switching tabs
+    if (tab === 'requests') {
+      setActiveRequestFilter('received')
+    } else if (tab === 'camps') {
+      setActiveCampFilter('all')
+    }
+    setIsSidebarOpen(false)
+  }
+
+  // Filter data based on active tab and sub-tab selections
   let filteredData = []
   if (activeTab === 'requests') {
     filteredData = activeRequestFilter === 'all'
       ? requests
       : requests.filter(req => req.Verified === activeRequestFilter)
+  } else if (activeTab === 'camps') {
+    filteredData = activeCampFilter === 'all'
+      ? camps
+      : camps.filter(camp => camp.CampStatus === activeCampFilter)
   } else if (activeTab === 'donors') {
     filteredData = donors
-  } else if (activeTab === 'camps') {
-    filteredData =
-      activeCampFilter === 'all'
-        ? camps
-        : camps.filter(camp => camp.CampStatus === activeCampFilter)
   }
-
   const indexOfLastItem = currentPage * itemsPerPage
   const indexOfFirstItem = indexOfLastItem - itemsPerPage
   const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem)
-
-  // Handle sidebar menu click (for mobile/desktop navigation)
-  const handleSidebarClick = (tab, filter) => {
-    if (tab === 'requests') {
-      setActiveTab('requests')
-      setActiveRequestFilter(filter)
-    } else if (tab === 'camps') {
-      setActiveTab('camps')
-      setActiveCampFilter(filter)
-    } else if (tab === 'donors') {
-      setActiveTab('donors')
-    }
-    setCurrentPage(1)
-    setIsSidebarOpen(false)
-  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -314,144 +217,33 @@ export default function AdminDashboard() {
       <aside className="hidden md:flex flex-col w-72 bg-gradient-to-b from-blue-900 to-gray-800 text-white p-6 space-y-6 shadow-xl">
         <div>
           <h2 className="text-3xl font-extrabold tracking-tight">Admin Dashboard</h2>
-          <p className="text-sm opacity-70">Manage your operations in style</p>
+          <p className="text-sm opacity-70">Manage your operations</p>
         </div>
         <nav className="flex-1 space-y-4">
-          <div>
-            <h3 className="text-lg font-semibold mb-2 border-b border-gray-600 pb-1">Blood Requests</h3>
-            <ul className="space-y-2">
-              <li>
-                <button
-                  onClick={() => handleSidebarClick('requests', 'received')}
-                  className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
-                    activeTab === 'requests' && activeRequestFilter === 'received'
-                      ? 'bg-red-600'
-                      : 'hover:bg-gray-700'
-                  }`}
-                >
-                  Current Requests <span className="opacity-70">({stats.currentRequests})</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleSidebarClick('requests', 'accepted')}
-                  className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
-                    activeTab === 'requests' && activeRequestFilter === 'accepted'
-                      ? 'bg-red-600'
-                      : 'hover:bg-gray-700'
-                  }`}
-                >
-                  Ongoing Requests <span className="opacity-70">({stats.ongoingRequests})</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleSidebarClick('requests', 'completed')}
-                  className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
-                    activeTab === 'requests' && activeRequestFilter === 'completed'
-                      ? 'bg-red-600'
-                      : 'hover:bg-gray-700'
-                  }`}
-                >
-                  Completed Requests <span className="opacity-70">({stats.completedRequests})</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleSidebarClick('requests', 'rejected')}
-                  className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
-                    activeTab === 'requests' && activeRequestFilter === 'rejected'
-                      ? 'bg-red-600'
-                      : 'hover:bg-gray-700'
-                  }`}
-                >
-                  Rejected Requests <span className="opacity-70">({stats.rejectedRequests})</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleSidebarClick('requests', 'all')}
-                  className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
-                    activeTab === 'requests' && activeRequestFilter === 'all'
-                      ? 'bg-red-600'
-                      : 'hover:bg-gray-700'
-                  }`}
-                >
-                  All Requests <span className="opacity-70">({stats.totalRequests})</span>
-                </button>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold mb-2 border-b border-gray-600 pb-1">Blood Camps</h3>
-            <ul className="space-y-2">
-              <li>
-                <button
-                  onClick={() => handleSidebarClick('camps', 'all')}
-                  className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
-                    activeTab === 'camps' && activeCampFilter === 'all'
-                      ? 'bg-red-600'
-                      : 'hover:bg-gray-700'
-                  }`}
-                >
-                  All Camps <span className="opacity-70">({camps.length})</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleSidebarClick('camps', 'upcoming')}
-                  className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
-                    activeTab === 'camps' && activeCampFilter === 'upcoming'
-                      ? 'bg-red-600'
-                      : 'hover:bg-gray-700'
-                  }`}
-                >
-                  Upcoming Camps <span className="opacity-70">({stats.upcomingCamps})</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleSidebarClick('camps', 'ongoing')}
-                  className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
-                    activeTab === 'camps' && activeCampFilter === 'ongoing'
-                      ? 'bg-red-600'
-                      : 'hover:bg-gray-700'
-                  }`}
-                >
-                  Ongoing Camps <span className="opacity-70">({stats.ongoingCamps})</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleSidebarClick('camps', 'completed')}
-                  className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
-                    activeTab === 'camps' && activeCampFilter === 'completed'
-                      ? 'bg-red-600'
-                      : 'hover:bg-gray-700'
-                  }`}
-                >
-                  Completed Camps <span className="opacity-70">({stats.completedCamps})</span>
-                </button>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold mb-2">Donors</h3>
-            <ul className="space-y-2">
-              <li>
-                <button
-                  onClick={() => handleSidebarClick('donors')}
-                  className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
-                    activeTab === 'donors'
-                      ? 'bg-red-600'
-                      : 'hover:bg-gray-700'
-                  }`}
-                >
-                  Donors <span className="opacity-70">({stats.totalDonors})</span>
-                </button>
-              </li>
-            </ul>
-          </div>
+          <button
+            onClick={() => handleSidebarClick('requests')}
+            className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
+              activeTab === 'requests' ? 'bg-red-600' : 'hover:bg-gray-700'
+            }`}
+          >
+            Blood Requests
+          </button>
+          <button
+            onClick={() => handleSidebarClick('camps')}
+            className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
+              activeTab === 'camps' ? 'bg-red-600' : 'hover:bg-gray-700'
+            }`}
+          >
+            Blood Camps
+          </button>
+          <button
+            onClick={() => handleSidebarClick('donors')}
+            className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
+              activeTab === 'donors' ? 'bg-red-600' : 'hover:bg-gray-700'
+            }`}
+          >
+            Donors
+          </button>
         </nav>
       </aside>
 
@@ -463,167 +255,84 @@ export default function AdminDashboard() {
             <p className="text-sm opacity-70">Manage your operations</p>
           </div>
           <nav className="space-y-4">
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Blood Requests</h3>
-              <ul className="space-y-2">
-                <li>
-                  <button
-                    onClick={() => handleSidebarClick('requests', 'received')}
-                    className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
-                      activeTab === 'requests' && activeRequestFilter === 'received'
-                        ? 'bg-red-600'
-                        : 'hover:bg-gray-700'
-                    }`}
-                  >
-                    Current Requests ({stats.currentRequests})
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => handleSidebarClick('requests', 'accepted')}
-                    className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
-                      activeTab === 'requests' && activeRequestFilter === 'accepted'
-                        ? 'bg-red-600'
-                        : 'hover:bg-gray-700'
-                    }`}
-                  >
-                    Ongoing Requests ({stats.ongoingRequests})
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => handleSidebarClick('requests', 'completed')}
-                    className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
-                      activeTab === 'requests' && activeRequestFilter === 'completed'
-                        ? 'bg-red-600'
-                        : 'hover:bg-gray-700'
-                    }`}
-                  >
-                    Completed Requests ({stats.completedRequests})
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => handleSidebarClick('requests', 'rejected')}
-                    className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
-                      activeTab === 'requests' && activeRequestFilter === 'rejected'
-                        ? 'bg-red-600'
-                        : 'hover:bg-gray-700'
-                    }`}
-                  >
-                    Rejected Requests ({stats.rejectedRequests})
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => handleSidebarClick('requests', 'all')}
-                    className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
-                      activeTab === 'requests' && activeRequestFilter === 'all'
-                        ? 'bg-red-600'
-                        : 'hover:bg-gray-700'
-                    }`}
-                  >
-                    All Requests ({stats.totalRequests})
-                  </button>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Blood Camps</h3>
-              <ul className="space-y-2">
-                <li>
-                  <button
-                    onClick={() => handleSidebarClick('camps', 'all')}
-                    className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
-                      activeTab === 'camps' && activeCampFilter === 'all'
-                        ? 'bg-red-600'
-                        : 'hover:bg-gray-700'
-                    }`}
-                  >
-                    All Camps ({camps.length})
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => handleSidebarClick('camps', 'upcoming')}
-                    className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
-                      activeTab === 'camps' && activeCampFilter === 'upcoming'
-                        ? 'bg-red-600'
-                        : 'hover:bg-gray-700'
-                    }`}
-                  >
-                    Upcoming ({stats.upcomingCamps})
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => handleSidebarClick('camps', 'ongoing')}
-                    className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
-                      activeTab === 'camps' && activeCampFilter === 'ongoing'
-                        ? 'bg-red-600'
-                        : 'hover:bg-gray-700'
-                    }`}
-                  >
-                    Ongoing ({stats.ongoingCamps})
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => handleSidebarClick('camps', 'completed')}
-                    className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
-                      activeTab === 'camps' && activeCampFilter === 'completed'
-                        ? 'bg-red-600'
-                        : 'hover:bg-gray-700'
-                    }`}
-                  >
-                    Completed ({stats.completedCamps})
-                  </button>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Donors</h3>
-              <ul className="space-y-2">
-                <li>
-                  <button
-                    onClick={() => handleSidebarClick('donors')}
-                    className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
-                      activeTab === 'donors'
-                        ? 'bg-red-600'
-                        : 'hover:bg-gray-700'
-                    }`}
-                  >
-                    Donors <span className="opacity-70">({stats.totalDonors})</span>
-                  </button>
-                </li>
-              </ul>
-            </div>
+            <Link href="#" onClick={() => handleSidebarClick('requests')} className="block px-4 py-2 rounded hover:bg-red-500">
+              Blood Requests
+            </Link>
+            <Link href="#" onClick={() => handleSidebarClick('camps')} className="block px-4 py-2 rounded hover:bg-red-500">
+              Blood Camps
+            </Link>
+            <Link href="#" onClick={() => handleSidebarClick('donors')} className="block px-4 py-2 rounded hover:bg-red-500">
+              Donors
+            </Link>
           </nav>
         </DialogContent>
       </Dialog>
 
       {/* Main Content */}
-      <div className="flex-1 p-6 md:p-10 ml-0 ">
+      <div className="flex-1 p-6 md:p-10">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-4xl font-extrabold text-gray-800">Admin Dashboard</h1>
+          <h1 className="text-4xl font-extrabold text-gray-800">
+            {activeTab === 'requests'
+              ? 'Blood Requests'
+              : activeTab === 'camps'
+              ? 'Blood Camps'
+              : 'Donors'}
+          </h1>
           <button className="md:hidden p-2 rounded bg-gray-200 hover:bg-gray-300 transition" onClick={() => setIsSidebarOpen(true)}>
-            <svg
-              className="w-6 h-6 text-gray-800"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
+            <svg className="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"></path>
             </svg>
           </button>
         </div>
 
-        {/* Data Table Section for Requests */}
+        {/* Sub-tabs for Requests */}
+        {activeTab === 'requests' && (
+          <div className="mb-4 flex space-x-4">
+            {[
+              { label: 'Current', value: 'received' },
+              { label: 'Ongoing', value: 'accepted' },
+              { label: 'Completed', value: 'completed' },
+              { label: 'Rejected', value: 'rejected' },
+              { label: 'All', value: 'all' }
+            ].map(tab => (
+              <button
+                key={tab.value}
+                onClick={() => { setActiveRequestFilter(tab.value); setCurrentPage(1) }}
+                className={`px-4 py-2 rounded ${
+                  activeRequestFilter === tab.value ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-800'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Sub-tabs for Camps */}
+        {activeTab === 'camps' && (
+          <div className="mb-4 flex space-x-4">
+            {[
+              { label: 'All Camps', value: 'all' },
+              { label: 'Upcoming', value: 'upcoming' },
+              { label: 'Ongoing', value: 'ongoing' },
+              { label: 'Completed', value: 'completed' }
+            ].map(tab => (
+              <button
+                key={tab.value}
+                onClick={() => { setActiveCampFilter(tab.value); setCurrentPage(1) }}
+                className={`px-4 py-2 rounded ${
+                  activeCampFilter === tab.value ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-800'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Data Table Section */}
         {activeTab === 'requests' && (
           <div className="bg-white rounded-xl shadow-lg p-8 mb-10">
-            <h2 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Blood Requests</h2>
             <div className="overflow-x-auto">
               <table className="min-w-full text-left">
                 <thead>
@@ -643,34 +352,22 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 space-x-2">
                         {request.Verified === "received" && (
                           <>
-                            <button
-                              onClick={() => handleConfirmAction(request.id, 'accepted')}
-                              className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition"
-                            >
+                            <Button onClick={() => handleConfirmAction(request.id, 'accepted')} className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition">
                               Accept
-                            </button>
-                            <button
-                              onClick={() => handleConfirmAction(request.id, 'rejected')}
-                              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition"
-                            >
+                            </Button>
+                            <Button onClick={() => handleConfirmAction(request.id, 'rejected')} className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition">
                               Reject
-                            </button>
+                            </Button>
                           </>
                         )}
                         {request.Verified === "accepted" && (
-                          <button
-                            onClick={() => updateRequestStatus(request.id, 'completed')}
-                            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition"
-                          >
+                          <Button onClick={() => handleConfirmAction(request.id, 'completed')} className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition">
                             Complete
-                          </button>
+                          </Button>
                         )}
-                        <button
-                          onClick={() => openDetailsModal(request, 'request')}
-                          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition"
-                        >
+                        <Button onClick={() => openDetailsModal(request, 'request')} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition">
                           More
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   ))}
@@ -680,10 +377,8 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Data Table Section for Donors */}
         {activeTab === 'donors' && (
           <div className="bg-white rounded-xl shadow-lg p-8 mb-10">
-            <h2 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Donors</h2>
             <div className="overflow-x-auto">
               <table className="min-w-full text-left">
                 <thead>
@@ -701,12 +396,9 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4">{donor.BloodGroup}</td>
                       <td className="px-6 py-4">{donor.MobileNumber}</td>
                       <td className="px-6 py-4">
-                        <button
-                          onClick={() => openDetailsModal(donor, 'donor')}
-                          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition"
-                        >
+                        <Button onClick={() => openDetailsModal(donor, 'donor')} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition">
                           More
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   ))}
@@ -716,10 +408,8 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Data Table Section for Camps */}
         {activeTab === 'camps' && (
           <div className="bg-white rounded-xl shadow-lg p-8 mb-10">
-            <h2 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Blood Camps</h2>
             <div className="overflow-x-auto">
               <table className="min-w-full text-left">
                 <thead>
@@ -741,12 +431,9 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4">{camp.CampLocation}</td>
                       <td className="px-6 py-4 capitalize">{camp.CampStatus}</td>
                       <td className="px-6 py-4">
-                        <button
-                          onClick={() => openDetailsModal(camp, 'camp')}
-                          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition"
-                        >
+                        <Button onClick={() => openDetailsModal(camp, 'camp')} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition">
                           More
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   ))}
@@ -757,31 +444,37 @@ export default function AdminDashboard() {
         )}
 
         {/* Pagination */}
-        <div className="flex justify-center mt-8">
-          <div className="space-x-4">
-            <button
-              className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition disabled:opacity-50"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(prev => prev - 1)}
-            >
-              Previous
-            </button>
-            <button
-              className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition disabled:opacity-50"
-              disabled={currentItems.length < itemsPerPage}
-              onClick={() => setCurrentPage(prev => prev + 1)}
-            >
-              Next
-            </button>
+        {activeTab !== 'donors' && (
+          <div className="flex justify-center mt-8">
+            <div className="space-x-4">
+              <button
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition disabled:opacity-50"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => prev - 1)}
+              >
+                Previous
+              </button>
+              <button
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition disabled:opacity-50"
+                disabled={currentItems.length < itemsPerPage}
+                onClick={() => setCurrentPage(prev => prev + 1)}
+              >
+                Next
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Confirmation Modal for Accept/Reject actions */}
+        {/* Confirmation Modal for Actions */}
         <Dialog open={confirmModal.open} onOpenChange={(open) => setConfirmModal({ ...confirmModal, open })}>
           <DialogContent className="sm:max-w-[400px]">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold">
-                Confirm {confirmModal.action === 'accepted' ? 'Accept' : 'Reject'}
+                {confirmModal.action === 'accepted'
+                  ? 'Confirm Accept'
+                  : confirmModal.action === 'rejected'
+                  ? 'Confirm Reject'
+                  : 'Confirm Complete'}
               </DialogTitle>
             </DialogHeader>
             <p>{confirmModal.message}</p>
@@ -800,8 +493,8 @@ export default function AdminDashboard() {
         </Dialog>
 
         {/* Details Modal */}
-        <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if (!open) { setUserDetails(null); setRequestDonations([]); } }}>
-          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if (!open) setSelectedItem(null) }}>
+          <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold">
                 {modalType === 'request'
@@ -814,118 +507,60 @@ export default function AdminDashboard() {
             {selectedItem && (
               <div className="space-y-4 mt-4">
                 {modalType === 'request' ? (
-                  <>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="font-semibold">Attender Mobile</p>
-                        <p>{selectedItem.AttenderMobile}</p>
-                      </div>
-                      <div>
-                        <p className="font-semibold">Attender Name</p>
-                        <p>{selectedItem.AttenderName}</p>
-                      </div>
-                      <div>
-                        <p className="font-semibold">Blood Group</p>
-                        <p>{selectedItem.BloodGroup}</p>
-                      </div>
-                      <div>
-                        <p className="font-semibold">City</p>
-                        <p>{selectedItem.City}</p>
-                      </div>
-                      <div>
-                        <p className="font-semibold">Country</p>
-                        <p>{selectedItem.Country}</p>
-                      </div>
-                      <div>
-                        <p className="font-semibold">Gender</p>
-                        <p>{selectedItem.Gender}</p>
-                      </div>
-                      <div>
-                        <p className="font-semibold">Hospital</p>
-                        <p>{selectedItem.Hospital}</p>
-                      </div>
-                      <div>
-                        <p className="font-semibold">Patient Age</p>
-                        <p>{selectedItem.PatientAge}</p>
-                      </div>
-                      <div>
-                        <p className="font-semibold">Patient Name</p>
-                        <p>{selectedItem.PatientName}</p>
-                      </div>
-                      <div>
-                        <p className="font-semibold">Reason</p>
-                        <p>{selectedItem.Reason}</p>
-                      </div>
-                      <div>
-                        <p className="font-semibold">State</p>
-                        <p>{selectedItem.State}</p>
-                      </div>
-                      <div>
-                        <p className="font-semibold">Units Needed</p>
-                        <p>{selectedItem.UnitsNeeded}</p>
-                      </div>
-                      <div>
-                        <p className="font-semibold">Verified</p>
-                        <p>{selectedItem.Verified}</p>
-                      </div>
-                      <div>
-                        <p className="font-semibold">Units Donated</p>
-                        <p>{selectedItem.UnitsDonated}</p>
-                      </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="font-semibold">Attender Mobile</p>
+                      <p>{selectedItem.AttenderMobile}</p>
                     </div>
-                    {/* Display connected donors mapped to donor details */}
-                    <div className="mt-6">
-                      <h3 className="text-xl font-bold">Connected Donors</h3>
-                      {requestDonations.length === 0 ? (
-                        <p>No donors connected yet.</p>
-                      ) : (
-                        requestDonations.map(donation => {
-                          // First, find the corresponding user record from the users collection
-                          const userRecord = users.find(user => user.id === donation.donorId)
-                          // Then, use the user's email to find a matching donor record from donors collection
-                          const donorDetail = userRecord ? donors.find(donor => donor.Email === userRecord.email) : null
-                          return (
-                            <div key={donation.id} className="border p-2 rounded my-2">
-                              {donorDetail ? (
-                                <>
-                                  <p><strong>Name:</strong> {donorDetail.Name}</p>
-                                  <p><strong>Blood Group:</strong> {donorDetail.BloodGroup}</p>
-                                  <p><strong>Mobile:</strong> {donorDetail.MobileNumber}</p>
-                                  <p><strong>Email:</strong> {donorDetail.Email}</p>
-                                </>
-                              ) : userRecord ? (
-                                <>
-                                  <p><strong>User Email:</strong> {userRecord.email}</p>
-                                  <p>No matching donor details found using email from user details.</p>
-                                </>
-                              ) : (
-                                <p>No donor details found for donor id: {donation.donorId}</p>
-                              )}
-                              <p><strong>Donor OTP Verified:</strong> {donation.donorOtpVerified ? 'Yes' : 'No'}</p>
-                              <p><strong>Requester OTP Verified:</strong> {donation.requesterOtpVerified ? 'Yes' : 'No'}</p>
-                            </div>
-                          )
-                        })
-                      )}
+                    <div>
+                      <p className="font-semibold">Attender Name</p>
+                      <p>{selectedItem.AttenderName}</p>
                     </div>
-                    {selectedItem.uuid && (
-                      <div className="mt-6">
-                        <h3 className="text-xl font-bold">User Details</h3>
-                        {userDetails ? (
-                          <div className="mt-2">
-                            {Object.entries(userDetails).map(([key, value]) => (
-                              <div key={key} className="flex">
-                                <p className="font-semibold mr-2">{key}:</p>
-                                <p>{JSON.stringify(value)}</p>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p>Loading user details...</p>
-                        )}
-                      </div>
-                    )}
-                  </>
+                    <div>
+                      <p className="font-semibold">Blood Group</p>
+                      <p>{selectedItem.BloodGroup}</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">City</p>
+                      <p>{selectedItem.City}</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">Country</p>
+                      <p>{selectedItem.Country}</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">Gender</p>
+                      <p>{selectedItem.Gender}</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">Hospital</p>
+                      <p>{selectedItem.Hospital}</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">Patient Age</p>
+                      <p>{selectedItem.PatientAge}</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">Patient Name</p>
+                      <p>{selectedItem.PatientName}</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">Reason</p>
+                      <p>{selectedItem.Reason}</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">State</p>
+                      <p>{selectedItem.State}</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">Units Needed</p>
+                      <p>{selectedItem.UnitsNeeded}</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">Verified</p>
+                      <p>{selectedItem.Verified}</p>
+                    </div>
+                  </div>
                 ) : modalType === 'donor' ? (
                   <div className="grid grid-cols-2 gap-4">
                     <div>

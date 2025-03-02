@@ -1,8 +1,27 @@
-"use client"
-import React from 'react';
+"use client";
+import { useState, useEffect } from 'react';
 import Navbar from "@/components/Navbar";
-import { Heart, Users, Activity, Calendar, Phone, Mail, MapPin, ArrowRight } from 'lucide-react';
-import img from "@/public/4414663.jpg"
+import { Activity, ArrowRight, Calendar, Heart, Mail, MapPin, Phone, Users } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getFirestore, collection, onSnapshot } from 'firebase/firestore';
+
+// Firebase configuration (using your environment variables)
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+};
+
+// Initialize Firebase
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const db = getFirestore(app);
+
 const StatCard = ({ icon: Icon, title, value }) => (
   <div className="bg-white bg-opacity-80 p-8 rounded-2xl shadow-xl transform hover:-translate-y-2 transition-all duration-300">
     <div className="flex items-center justify-center w-16 h-16 bg-red-200 rounded-full mx-auto mb-4">
@@ -14,6 +33,53 @@ const StatCard = ({ icon: Icon, title, value }) => (
 );
 
 export default function Home() {
+  const router = useRouter();
+
+  // State for real-time stats
+  const [stats, setStats] = useState({
+    activeDonors: 0,
+    livesSaved: 0,
+    successfulDonations: 0,
+    bloodCamps: 0,
+  });
+
+  useEffect(() => {
+    // Listen for active donors
+    const donorsUnsub = onSnapshot(collection(db, 'donors'), (snapshot) => {
+      setStats((prev) => ({ ...prev, activeDonors: snapshot.size }));
+    });
+
+    // Listen for requests to compute completed requests and sum of units donated
+    const requestsUnsub = onSnapshot(collection(db, 'requests'), (snapshot) => {
+      let completedCount = 0;
+      let totalUnitsDonated = 0;
+      snapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        if (data.Verified === 'completed') {
+          completedCount++;
+          totalUnitsDonated += Number(data.UnitsDonated || 0);
+        }
+      });
+      setStats((prev) => ({
+        ...prev,
+        livesSaved: completedCount,
+        successfulDonations: totalUnitsDonated,
+      }));
+    });
+
+    // Listen for blood camps
+    const campsUnsub = onSnapshot(collection(db, 'camps'), (snapshot) => {
+      setStats((prev) => ({ ...prev, bloodCamps: snapshot.size }));
+    });
+
+    // Cleanup listeners on unmount
+    return () => {
+      donorsUnsub();
+      requestsUnsub();
+      campsUnsub();
+    };
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col bg-white">
       <Navbar />
@@ -22,6 +88,7 @@ export default function Home() {
         {/* Hero Section */}
         <section className="relative flex items-center justify-center bg-red-800">
           <div className="absolute inset-0">
+            {/* Background image can be enabled if desired */}
             {/* <img 
               src="/4414663.jpg"
               alt="Blood Donation" 
@@ -38,10 +105,10 @@ export default function Home() {
                 Join our mission to save lives with every donation. Together, we make a difference.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
-                <button className="bg-white text-red-800 px-8 py-4 rounded-full font-bold hover:bg-gray-100 transition-all flex items-center">
+                <button className="bg-white text-red-800 px-8 py-4 rounded-full font-bold hover:bg-gray-100 transition-all flex items-center" onClick={() => router.push('/dashboard')}>
                   Donate Now <ArrowRight className="ml-2 w-5 h-5" />
                 </button>
-                <button className="border-2 border-white text-white px-8 py-4 rounded-full font-bold hover:bg-white hover:text-red-800 transition-all">
+                <button className="border-2 border-white text-white px-8 py-4 rounded-full font-bold hover:bg-white hover:text-red-800 transition-all" onClick={() => router.push('/needdonor')}>
                   Find Donors
                 </button>
               </div>
@@ -60,10 +127,10 @@ export default function Home() {
         <section className="py-16 bg-red-50">
           <div className="container mx-auto px-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              <StatCard icon={Users} title="Active Donors" value="5,000+" />
-              <StatCard icon={Heart} title="Lives Saved" value="10,000+" />
-              <StatCard icon={Activity} title="Successful Donations" value="15,000+" />
-              <StatCard icon={Calendar} title="Blood Drives" value="500+" />
+              <StatCard icon={Users} title="Active Donors" value={stats.activeDonors} />
+              <StatCard icon={Heart} title="Lives Saved" value={stats.livesSaved} />
+              <StatCard icon={Activity} title="Successful Donations" value={stats.successfulDonations} />
+              <StatCard icon={Calendar} title="Blood Drives" value={stats.bloodCamps} />
             </div>
           </div>
         </section>
@@ -109,7 +176,7 @@ export default function Home() {
             <p className="text-xl mb-8 max-w-2xl mx-auto">
               Become a part of our dedicated community of blood donors and make a life-changing impact today.
             </p>
-            <button className="bg-white text-red-700 px-10 py-4 rounded-full font-bold hover:bg-gray-100 transition-all">
+            <button className="bg-white text-red-700 px-10 py-4 rounded-full font-bold hover:bg-gray-100 transition-all" onClick={() => router.push('/newdonor')}>
               Register as Donor
             </button>
           </div>
@@ -151,9 +218,9 @@ export default function Home() {
               <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
               <ul className="space-y-2">
                 <li><a href="/about" className="text-gray-400 hover:text-white transition-colors">About Us</a></li>
-                <li><a href="/donate" className="text-gray-400 hover:text-white transition-colors">Donate Blood</a></li>
-                <li><a href="/find" className="text-gray-400 hover:text-white transition-colors">Find Donors</a></li>
-              </ul>
+                <li><a href="/dashboard" className="text-gray-400 hover:text-white transition-colors">Donate Blood</a></li>
+                <li><a href="/needdonor" className="text-gray-400 hover:text-white transition-colors">Find Donors</a></li>
+              </ul> 
             </div>
             <div>
               <h4 className="text-lg font-semibold mb-4">Resources</h4>

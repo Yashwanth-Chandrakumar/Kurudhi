@@ -3,7 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import CryptoJS from "crypto-js";
 import { getApp, getApps, initializeApp } from "firebase/app";
 import { doc, getDoc, getFirestore, collection, query, where, getDocs } from "firebase/firestore";
-import { Menu, X } from "lucide-react";
+import { Menu, X, User } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -32,6 +32,7 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     await logout();
+    router.push("/signin");
     setShowLogoutConfirm(false);
     setShowProfileDropdown(false);
   };
@@ -98,7 +99,7 @@ const Navbar = () => {
           {/* Logo Section */}
           <div className="flex-shrink-0 flex items-center">
             <Link href="/">
-              {/* Replace "/logo.png" with your logo image */}
+              {/* Replace "/kk.png" with your logo image */}
               <img src="/kk.png" alt="Logo" className="h-36 w-auto" />
             </Link>
           </div>
@@ -139,9 +140,9 @@ const Navbar = () => {
               <div className="relative">
                 <button
                   onClick={() => setShowProfileDropdown((prev) => !prev)}
-                  className="bg-white text-red-600 hover:bg-red-100 px-4 py-2 rounded-md text-sm font-medium"
+                  className="bg-white text-red-600 hover:bg-red-100 p-2 rounded-md"
                 >
-                  {user.email}
+                  <User className="w-6 h-6" />
                 </button>
                 {showProfileDropdown && (
                   <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow-lg z-50">
@@ -151,6 +152,13 @@ const Navbar = () => {
                       onClick={() => setShowProfileDropdown(false)}
                     >
                       Profile
+                    </Link>
+                    <Link
+                      href="/myrequests"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setShowProfileDropdown(false)}
+                    >
+                      My Requests
                     </Link>
                     <button
                       onClick={() => setShowLogoutConfirm(true)}
@@ -217,9 +225,9 @@ const Navbar = () => {
                 <div className="relative">
                   <button
                     onClick={() => setShowProfileDropdown((prev) => !prev)}
-                    className="w-full text-center bg-white text-red-600 hover:bg-red-100 px-4 py-2 rounded-md text-base font-medium"
+                    className="w-full text-center bg-white text-red-600 hover:bg-red-100 p-2 rounded-md"
                   >
-                    {user.email}
+                    <User className="w-6 h-6 inline" />
                   </button>
                   {showProfileDropdown && (
                     <div className="absolute right-0 mt-2 w-full bg-white border rounded shadow-lg z-50">
@@ -229,6 +237,13 @@ const Navbar = () => {
                         onClick={() => setShowProfileDropdown(false)}
                       >
                         Profile
+                      </Link>
+                      <Link
+                        href="/myrequests"
+                        className="block px-3 py-2 text-base text-gray-700 hover:bg-gray-100"
+                        onClick={() => setShowProfileDropdown(false)}
+                      >
+                        My Requests
                       </Link>
                       <button
                         onClick={() => setShowLogoutConfirm(true)}

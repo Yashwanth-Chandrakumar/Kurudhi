@@ -15,7 +15,7 @@ export default function VerifyMail() {
         <span className="font-semibold">{email}</span>. Please verify and then login.
       </p>
       <button
-        onClick={() => router.push("/login")}
+        onClick={() => router.push("/signin")}
         className="bg-green-500 text-white px-4 py-2 rounded"
       >
         Login Here
