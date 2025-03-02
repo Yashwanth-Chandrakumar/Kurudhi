@@ -1,6 +1,13 @@
 'use client'
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  query, 
+  where, 
+  getDocs 
+} from 'firebase/firestore';
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -97,12 +104,29 @@ export default function BecomeDonor() {
     acceptTerms: false
   });
 
-  // Set email from auth on mount.
+  // If the user is logged in, set the email in the form data.
   useEffect(() => {
     if(user?.email) {
       setFormData(prev => ({ ...prev, email: user.email }));
     }
   }, [user]);
+
+  // Check if the user is an existing donor. If so, route to /dashboard.
+  useEffect(() => {
+    if(user?.email) {
+      const checkExistingDonor = async () => {
+        const db = getFirestore(initializeApp(firebaseConfig));
+        const donorsRef = collection(db, 'donors');
+        const q = query(donorsRef, where('Email', '==', user.email));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          // User is already a donor, redirect them.
+          router.push('/dashboard');
+        }
+      };
+      checkExistingDonor();
+    }
+  }, [user, router]);
 
   const [errors, setErrors] = useState({});
   const [submitStatus, setSubmitStatus] = useState({ type: '', message: '' });
@@ -111,7 +135,7 @@ export default function BecomeDonor() {
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  // Updated validation for step 2 to use cities
+  // Validation functions
   const getValidationErrors = (step) => {
     const newErrors = {};
 
@@ -155,7 +179,6 @@ export default function BecomeDonor() {
         break;
 
       case 2:
-        // Permanent and Resident City are required.
         if (!formData.permanentCity) newErrors.permanentCity = 'Permanent city is required';
         if (!formData.sameAsPermenant && !formData.residentCity) newErrors.residentCity = 'Resident city is required';
         break;
@@ -288,272 +311,272 @@ export default function BecomeDonor() {
 
   return (
     <>
-    <Navbar/>
-    <div className="min-h-screen bg-gradient-to-b from-red-50 to-white py-12">
-      <div className="container mx-auto px-4 max-w-2xl">
-        <h1 className="text-4xl font-bold text-center mb-8 text-red-700">
-          Become a Blood Donor
-        </h1>
-        
-        {submitStatus.message && (
-          <Alert className={`mb-4 ${
-            submitStatus.type === 'success' ? 'bg-green-50 border-green-200' :
-            submitStatus.type === 'error' ? 'bg-red-50 border-red-200' :
-            'bg-blue-50 border-blue-200'
-          }`}>
-            <AlertDescription className={`${
-              submitStatus.type === 'success' ? 'text-green-800' :
-              submitStatus.type === 'error' ? 'text-red-800' :
-              'text-blue-800'
+      <Navbar/>
+      <div className="min-h-screen bg-gradient-to-b from-red-50 to-white py-12">
+        <div className="container mx-auto px-4 max-w-2xl">
+          <h1 className="text-4xl font-bold text-center mb-8 text-red-700">
+            Become a Blood Donor
+          </h1>
+          
+          {submitStatus.message && (
+            <Alert className={`mb-4 ${
+              submitStatus.type === 'success' ? 'bg-green-50 border-green-200' :
+              submitStatus.type === 'error' ? 'bg-red-50 border-red-200' :
+              'bg-blue-50 border-blue-200'
             }`}>
-              {submitStatus.message}
-            </AlertDescription>
-          </Alert>
-        )}
+              <AlertDescription className={`${
+                submitStatus.type === 'success' ? 'text-green-800' :
+                submitStatus.type === 'error' ? 'text-red-800' :
+                'text-blue-800'
+              }`}>
+                {submitStatus.message}
+              </AlertDescription>
+            </Alert>
+          )}
 
-        <Card className="border-2 border-red-100 shadow-lg">
-          <CardContent className="pt-8">
-            <Stepper steps={steps} currentStep={currentStep} />
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {currentStep === 0 && (
-                <div className="space-y-4">
-                  {['name', 'age'].map(field => (
-                    <div key={field}>
-                      <Label className="text-red-700 capitalize">{field}</Label>
-                      <Input
-                        name={field}
-                        type={field === 'age' ? 'number' : 'text'}
-                        min={field === 'age' ? "18" : undefined}
-                        max={field === 'age' ? "65" : undefined}
-                        value={formData[field]}
-                        onChange={handleChange}
-                        className={`border-red-200 focus:ring-red-500 ${
-                          errors[field] ? 'border-red-500' : ''
-                        }`}
-                        placeholder={`Enter your ${field}`}
-                      />
-                      {renderFieldError(field)}
-                    </div>
-                  ))}
-                  {['gender', 'bloodGroup'].map(field => (
-                    <div key={field}>
-                      <Label className="text-red-700">
-                        {field === 'bloodGroup' ? 'Blood Group' : 'Gender'}
-                      </Label>
-                      <Select
-                        name={field}
-                        value={formData[field]}
-                        onValueChange={(value) => handleSelectChange(field, value)}
-                      >
-                        <SelectTrigger className={`border-red-200 ${
-                          errors[field] ? 'border-red-500' : ''
-                        }`}>
-                          <SelectValue placeholder={`Select ${field === 'bloodGroup' ? 'blood group' : field}`} />
+          <Card className="border-2 border-red-100 shadow-lg">
+            <CardContent className="pt-8">
+              <Stepper steps={steps} currentStep={currentStep} />
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {currentStep === 0 && (
+                  <div className="space-y-4">
+                    {['name', 'age'].map(field => (
+                      <div key={field}>
+                        <Label className="text-red-700 capitalize">{field}</Label>
+                        <Input
+                          name={field}
+                          type={field === 'age' ? 'number' : 'text'}
+                          min={field === 'age' ? "18" : undefined}
+                          max={field === 'age' ? "65" : undefined}
+                          value={formData[field]}
+                          onChange={handleChange}
+                          className={`border-red-200 focus:ring-red-500 ${
+                            errors[field] ? 'border-red-500' : ''
+                          }`}
+                          placeholder={`Enter your ${field}`}
+                        />
+                        {renderFieldError(field)}
+                      </div>
+                    ))}
+                    {['gender', 'bloodGroup'].map(field => (
+                      <div key={field}>
+                        <Label className="text-red-700">
+                          {field === 'bloodGroup' ? 'Blood Group' : 'Gender'}
+                        </Label>
+                        <Select
+                          name={field}
+                          value={formData[field]}
+                          onValueChange={(value) => handleSelectChange(field, value)}
+                        >
+                          <SelectTrigger className={`border-red-200 ${
+                            errors[field] ? 'border-red-500' : ''
+                          }`}>
+                            <SelectValue placeholder={`Select ${field === 'bloodGroup' ? 'blood group' : field}`} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {field === 'gender' 
+                              ? ['male', 'female', 'other'].map(value => (
+                                  <SelectItem key={value} value={value} className="capitalize">
+                                    {value}
+                                  </SelectItem>
+                                ))
+                              : ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(value => (
+                                  <SelectItem key={value} value={value}>{value}</SelectItem>
+                                ))
+                            }
+                          </SelectContent>
+                        </Select>
+                        {renderFieldError(field)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {currentStep === 1 && (
+                  <div className="space-y-4">
+                    {['email', 'mobile', 'whatsapp'].map(field => (
+                      <div key={field}>
+                        <Label className="text-red-700 capitalize">{field}</Label>
+                        <Input
+                          name={field}
+                          type={field === 'email' ? 'email' : 'tel'}
+                          value={formData[field]}
+                          onChange={handleChange}
+                          className={`border-red-200 focus:ring-red-500 ${
+                            errors[field] ? 'border-red-500' : ''
+                          }`}
+                          placeholder={`Enter your ${field}`}
+                          disabled={field === 'email'}
+                        />
+                        {renderFieldError(field)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {currentStep === 2 && (
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-red-700 capitalize">Country</Label>
+                      <Select name="country" value="India">
+                        <SelectTrigger className="border-red-200">
+                          <SelectValue placeholder="India" />
                         </SelectTrigger>
                         <SelectContent>
-                          {field === 'gender' 
-                            ? ['male', 'female', 'other'].map(value => (
-                                <SelectItem key={value} value={value} className="capitalize">
-                                  {value}
-                                </SelectItem>
-                              ))
-                            : ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(value => (
-                                <SelectItem key={value} value={value}>{value}</SelectItem>
-                              ))
-                          }
+                          <SelectItem value="India" className="capitalize">
+                            India
+                          </SelectItem>
                         </SelectContent>
                       </Select>
-                      {renderFieldError(field)}
                     </div>
-                  ))}
-                </div>
-              )}
 
-              {currentStep === 1 && (
-                <div className="space-y-4">
-                  {['email', 'mobile', 'whatsapp'].map(field => (
-                    <div key={field}>
-                      <Label className="text-red-700 capitalize">{field}</Label>
+                    <div>
+                      <Label className="text-red-700 capitalize">State</Label>
                       <Input
-                        name={field}
-                        type={field === 'email' ? 'email' : 'tel'}
-                        value={formData[field]}
-                        onChange={handleChange}
-                        className={`border-red-200 focus:ring-red-500 ${
-                          errors[field] ? 'border-red-500' : ''
-                        }`}
-                        placeholder={`Enter your ${field}`}
-                        disabled={field === 'email'}  // Email field is disabled
+                        value="Tamil Nadu"
+                        disabled
+                        className="bg-gray-100 border-red-200"
                       />
-                      {renderFieldError(field)}
                     </div>
-                  ))}
-                </div>
-              )}
 
-              {currentStep === 2 && (
-                <div className="space-y-4">
-                  <div>
-                    <Label className="text-red-700 capitalize">Country</Label>
-                    <Select name="country" value="India">
-                      <SelectTrigger className="border-red-200">
-                        <SelectValue placeholder="India" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="India" className="capitalize">
-                          India
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div>
+                      <Label className="text-red-700">Permanent City</Label>
+                      <Select
+                        name="permanentCity"
+                        value={formData.permanentCity}
+                        onValueChange={(value) => handleSelectChange("permanentCity", value)}
+                      >
+                        <SelectTrigger className={`border-red-200 ${errors.permanentCity ? 'border-red-500' : ''}`}>
+                          <SelectValue placeholder="Select your permanent city" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {tamilNaduCities.map((city) => (
+                            <SelectItem key={city} value={city} className="capitalize">
+                              {city}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {renderFieldError('permanentCity')}
+                    </div>
+
+                    <div>
+                      <Label className="text-red-700">Resident City</Label>
+                      <Select
+                        name="residentCity"
+                        value={formData.residentCity}
+                        onValueChange={(value) => handleSelectChange("residentCity", value)}
+                      >
+                        <SelectTrigger className={`border-red-200 ${errors.residentCity ? 'border-red-500' : ''}`}>
+                          <SelectValue placeholder="Select your resident city" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {tamilNaduCities.map((city) => (
+                            <SelectItem key={city} value={city} className="capitalize">
+                              {city}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {renderFieldError('residentCity')}
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="sameAddress"
+                        checked={formData.sameAsPermenant}
+                        onCheckedChange={handleAddressCheckbox}
+                        className="border-red-200 data-[state=checked]:bg-red-600"
+                      />
+                      <Label htmlFor="sameAddress" className="text-red-700">
+                        Same as permanent city
+                      </Label>
+                    </div>
                   </div>
+                )}
 
-                  <div>
-                    <Label className="text-red-700 capitalize">State</Label>
-                    <Input
-                      value="Tamil Nadu"
-                      disabled
-                      className="bg-gray-100 border-red-200"
-                    />
-                  </div>
+                {currentStep === 3 && (
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="acceptTerms"
+                        checked={formData.acceptTerms}
+                        onCheckedChange={(checked) => handleChange({
+                          target: { name: 'acceptTerms', type: 'checkbox', checked }
+                        })}
+                        className="border-red-200 data-[state=checked]:bg-red-600"
+                      />
+                      <Label htmlFor="acceptTerms" className="text-red-700">
+                        I accept the terms and conditions
+                      </Label>
+                    </div>
+                    {renderFieldError('acceptTerms')}
 
-                  <div>
-                    <Label className="text-red-700">Permanent City</Label>
-                    <Select
-                      name="permanentCity"
-                      value={formData.permanentCity}
-                      onValueChange={(value) => handleSelectChange("permanentCity", value)}
-                    >
-                      <SelectTrigger className={`border-red-200 ${errors.permanentCity ? 'border-red-500' : ''}`}>
-                        <SelectValue placeholder="Select your permanent city" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {tamilNaduCities.map((city) => (
-                          <SelectItem key={city} value={city} className="capitalize">
-                            {city}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {renderFieldError('permanentCity')}
-                  </div>
-
-                  <div>
-                    <Label className="text-red-700">Resident City</Label>
-                    <Select
-                      name="residentCity"
-                      value={formData.residentCity}
-                      onValueChange={(value) => handleSelectChange("residentCity", value)}
-                    >
-                      <SelectTrigger className={`border-red-200 ${errors.residentCity ? 'border-red-500' : ''}`}>
-                        <SelectValue placeholder="Select your resident city" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {tamilNaduCities.map((city) => (
-                          <SelectItem key={city} value={city} className="capitalize">
-                            {city}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {renderFieldError('residentCity')}
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="sameAddress"
-                      checked={formData.sameAsPermenant}
-                      onCheckedChange={handleAddressCheckbox}
-                      className="border-red-200 data-[state=checked]:bg-red-600"
-                    />
-                    <Label htmlFor="sameAddress" className="text-red-700">
-                      Same as permanent city
-                    </Label>
-                  </div>
-                </div>
-              )}
-
-              {currentStep === 3 && (
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="acceptTerms"
-                      checked={formData.acceptTerms}
-                      onCheckedChange={(checked) => handleChange({
-                        target: { name: 'acceptTerms', type: 'checkbox', checked }
-                      })}
-                      className="border-red-200 data-[state=checked]:bg-red-600"
-                    />
-                    <Label htmlFor="acceptTerms" className="text-red-700">
-                      I accept the terms and conditions
-                    </Label>
-                  </div>
-                  {renderFieldError('acceptTerms')}
-
-                  {formData.acceptTerms && (
-                    <div className="mt-6 space-y-4 bg-red-50 p-4 rounded-lg">
-                      <h3 className="font-semibold text-red-800">Please review your information:</h3>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div className="text-red-600">Name:</div>
-                        <div className="text-red-900">{formData.name}</div>
-                        <div className="text-red-600">Age:</div>
-                        <div className="text-red-900">{formData.age}</div>
-                        <div className="text-red-600">Blood Group:</div>
-                        <div className="text-red-900">{formData.bloodGroup}</div>
-                        <div className="text-red-600">Gender:</div>
-                        <div className="text-red-900 capitalize">{formData.gender}</div>
-                        <div className="text-red-600">Email:</div>
-                        <div className="text-red-900">{formData.email}</div>
-                        <div className="text-red-600">Mobile:</div>
-                        <div className="text-red-900">{formData.mobile}</div>
-                        <div className="text-red-600">WhatsApp:</div>
-                        <div className="text-red-900">{formData.whatsapp}</div>
-                        <div className="text-red-600">State:</div>
-                        <div className="text-red-900">Tamil Nadu</div>
-                        <div className="text-red-600">Permanent City:</div>
-                        <div className="text-red-900">{formData.permanentCity}</div>
-                        <div className="text-red-600">Resident City:</div>
-                        <div className="text-red-900">{formData.residentCity || formData.permanentCity}</div>
+                    {formData.acceptTerms && (
+                      <div className="mt-6 space-y-4 bg-red-50 p-4 rounded-lg">
+                        <h3 className="font-semibold text-red-800">Please review your information:</h3>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div className="text-red-600">Name:</div>
+                          <div className="text-red-900">{formData.name}</div>
+                          <div className="text-red-600">Age:</div>
+                          <div className="text-red-900">{formData.age}</div>
+                          <div className="text-red-600">Blood Group:</div>
+                          <div className="text-red-900">{formData.bloodGroup}</div>
+                          <div className="text-red-600">Gender:</div>
+                          <div className="text-red-900 capitalize">{formData.gender}</div>
+                          <div className="text-red-600">Email:</div>
+                          <div className="text-red-900">{formData.email}</div>
+                          <div className="text-red-600">Mobile:</div>
+                          <div className="text-red-900">{formData.mobile}</div>
+                          <div className="text-red-600">WhatsApp:</div>
+                          <div className="text-red-900">{formData.whatsapp}</div>
+                          <div className="text-red-600">State:</div>
+                          <div className="text-red-900">Tamil Nadu</div>
+                          <div className="text-red-600">Permanent City:</div>
+                          <div className="text-red-900">{formData.permanentCity}</div>
+                          <div className="text-red-600">Resident City:</div>
+                          <div className="text-red-900">{formData.residentCity || formData.permanentCity}</div>
+                        </div>
                       </div>
-                    </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex justify-between mt-8">
+                  {currentStep > 0 && (
+                    <Button 
+                      type="button" 
+                      onClick={handlePrevious}
+                      variant="outline"
+                      className="border-2 border-red-600 text-red-600 hover:bg-red-50"
+                    >
+                      Previous
+                    </Button>
+                  )}
+                  {currentStep < steps.length - 1 ? (
+                    <Button 
+                      type="button" 
+                      onClick={handleNext}
+                      disabled={!isStepValid()}
+                      className="ml-auto bg-red-600 hover:bg-red-700 text-white disabled:bg-red-300"
+                    >
+                      Next
+                    </Button>
+                  ) : (
+                    <Button 
+                      type="submit"
+                      disabled={!isStepValid() || submitStatus.type === 'info'}
+                      className="ml-auto bg-red-600 hover:bg-red-700 text-white disabled:bg-red-300"
+                    >
+                      Submit
+                    </Button>
                   )}
                 </div>
-              )}
-
-              <div className="flex justify-between mt-8">
-                {currentStep > 0 && (
-                  <Button 
-                    type="button" 
-                    onClick={handlePrevious}
-                    variant="outline"
-                    className="border-2 border-red-600 text-red-600 hover:bg-red-50"
-                  >
-                    Previous
-                  </Button>
-                )}
-                {currentStep < steps.length - 1 ? (
-                  <Button 
-                    type="button" 
-                    onClick={handleNext}
-                    disabled={!isStepValid()}
-                    className="ml-auto bg-red-600 hover:bg-red-700 text-white disabled:bg-red-300"
-                  >
-                    Next
-                  </Button>
-                ) : (
-                  <Button 
-                    type="submit"
-                    disabled={!isStepValid() || submitStatus.type === 'info'}
-                    className="ml-auto bg-red-600 hover:bg-red-700 text-white disabled:bg-red-300"
-                  >
-                    Submit
-                  </Button>
-                )}
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </div>
     </>
   );
 }

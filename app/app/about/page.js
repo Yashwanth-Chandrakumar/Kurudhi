@@ -2,6 +2,7 @@
 import React from 'react';
 import { Heart, Users, Target, Award, CheckCircle, Calendar } from 'lucide-react';
 import Navbar from '@/components/Navbar';
+import { useRouter } from 'next/navigation';
 
 const TeamMember = ({ name, role, image }) => (
   <div className="bg-white rounded-2xl shadow-2xl overflow-hidden transform hover:-translate-y-2 transition-transform duration-300">
@@ -24,6 +25,7 @@ const ValueCard = ({ icon: Icon, title, description }) => (
 );
 
 export default function About() {
+  const router = useRouter();
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Navbar />
@@ -152,7 +154,7 @@ export default function About() {
             Be a hero in your community. Donate blood, save lives, and inspire change with Kurudhi Kodai.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <button className="bg-white text-red-700 px-10 py-4 rounded-full font-bold hover:bg-gray-100 transition-all">
+            <button className="bg-white text-red-700 px-10 py-4 rounded-full font-bold hover:bg-gray-100 transition-all" onClick={() => router.push("/newdonor")}>
               Become a Donor
             </button>
             <button className="border-2 border-white text-white px-10 py-4 rounded-full font-bold hover:bg-white hover:text-red-700 transition-all">
