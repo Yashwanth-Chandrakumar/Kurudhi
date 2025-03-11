@@ -1,12 +1,14 @@
 'use client'
 import Navbar from '@/components/Navbar'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -123,6 +125,11 @@ export default function SuperAdminDashboard() {
 
   // Add state for selected city
   const [selectedCity, setSelectedCity] = useState('');
+
+  // Add new state variables for editing donor details
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedDonorData, setEditedDonorData] = useState(null);
+  const [sameAsPermanent, setSameAsPermanent] = useState(false);
 
   // Check user authorization
   useEffect(() => {
@@ -284,6 +291,10 @@ export default function SuperAdminDashboard() {
     setSelectedItem(item)
     setModalType(type)
     setIsModalOpen(true)
+    if (type === 'donor') {
+      setEditedDonorData(item)
+      setSameAsPermanent(item.PermanentCity === item.ResidentCity)
+    }
   }
 
   // Sidebar click handler (desktop and mobile)
@@ -354,6 +365,32 @@ export default function SuperAdminDashboard() {
   const filteredUsers = allUsers.filter(u =>
     u.email.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  // Add function to handle donor data changes
+  const handleDonorChange = (field, value) => {
+    setEditedDonorData(prev => {
+      const newData = { ...prev, [field]: value };
+      if (field === 'PermanentCity' && sameAsPermanent) {
+        newData.ResidentCity = value;
+      }
+      return newData;
+    });
+  };
+
+  // Add function to save donor changes
+  const handleSaveDonorChanges = async () => {
+    try {
+      const donorRef = doc(db, 'donors', selectedItem.id);
+      await updateDoc(donorRef, editedDonorData);
+      toast.success('Donor details updated successfully!');
+      setIsEditing(false);
+      // Update the selected item with new data
+      setSelectedItem(editedDonorData);
+    } catch (error) {
+      console.error('Error updating donor:', error);
+      toast.error('Failed to update donor details');
+    }
+  };
 
   // If loading, show a loading indicator
   if (loading) {
@@ -942,55 +979,199 @@ export default function SuperAdminDashboard() {
                     </div>
                   </div>
                 ) : modalType === 'donor' ? (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="col-span-2 flex justify-center mb-4">
-                      {selectedItem.profile_picture ? (
-                        <Image 
-                          src={selectedItem.profile_picture} 
-                          alt={selectedItem.Name} 
-                          width={100} 
-                          height={100} 
-                          className="rounded-full object-cover border-4 border-red-100"
-                        />
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      {!isEditing ? (
+                        <Button 
+                          onClick={() => setIsEditing(true)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          Edit Donor
+                        </Button>
                       ) : (
-                        <div className="w-24 h-24 rounded-full bg-red-100 flex items-center justify-center">
-                          <span className="text-red-600 font-bold text-2xl">
-                            {selectedItem.Name && selectedItem.Name.charAt(0).toUpperCase()}
-                          </span>
+                        <div className="space-x-2">
+                          <Button 
+                            variant="outline" 
+                            onClick={() => {
+                              setIsEditing(false);
+                              setEditedDonorData(selectedItem);
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                          <Button 
+                            onClick={handleSaveDonorChanges}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            Save Changes
+                          </Button>
                         </div>
                       )}
                     </div>
-                    <div>
-                      <p className="font-semibold">Name</p>
-                      <p>{selectedItem.Name}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Blood Group</p>
-                      <p>{selectedItem.BloodGroup}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Email</p>
-                      <p>{selectedItem.Email}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Mobile</p>
-                      <p>{selectedItem.MobileNumber}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Permanent City</p>
-                      <p className="text-gray-700">{selectedItem.PermanentCity || 'Not provided'}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Residential City</p>
-                      <p className="text-gray-700">{selectedItem.ResidentCity || 'Not provided'}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">State</p>
-                      <p>{selectedItem.State}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Whatsapp Number</p>
-                      <p>{selectedItem.WhatsappNumber}</p>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="col-span-2 flex justify-center mb-4">
+                        {selectedItem.profile_picture ? (
+                          <Image 
+                            src={selectedItem.profile_picture} 
+                            alt={selectedItem.Name} 
+                            width={100} 
+                            height={100} 
+                            className="rounded-full object-cover border-4 border-red-100"
+                          />
+                        ) : (
+                          <div className="w-24 h-24 rounded-full bg-red-100 flex items-center justify-center">
+                            <span className="text-red-600 font-bold text-2xl">
+                              {selectedItem.Name && selectedItem.Name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                        {isEditing ? (
+                          <Input 
+                            value={editedDonorData.Name || ''} 
+                            onChange={(e) => handleDonorChange('Name', e.target.value)}
+                            className="w-full p-2 border rounded"
+                          />
+                        ) : (
+                          <p className="text-gray-900">{selectedItem.Name}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Blood Group</label>
+                        {isEditing ? (
+                          <Select 
+                            value={editedDonorData.BloodGroup || ''} 
+                            onValueChange={(val) => handleDonorChange('BloodGroup', val)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Blood Group" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((group) => (
+                                <SelectItem key={group} value={group}>{group}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <p className="text-gray-900">{selectedItem.BloodGroup}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <p className="text-gray-900">{selectedItem.Email}</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label>
+                        {isEditing ? (
+                          <Input 
+                            value={editedDonorData.MobileNumber || ''} 
+                            onChange={(e) => handleDonorChange('MobileNumber', e.target.value)}
+                            className="w-full p-2 border rounded"
+                          />
+                        ) : (
+                          <p className="text-gray-900">{selectedItem.MobileNumber}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp Number</label>
+                        {isEditing ? (
+                          <Input 
+                            value={editedDonorData.WhatsappNumber || ''} 
+                            onChange={(e) => handleDonorChange('WhatsappNumber', e.target.value)}
+                            className="w-full p-2 border rounded"
+                          />
+                        ) : (
+                          <p className="text-gray-900">{selectedItem.WhatsappNumber}</p>
+                        )}
+                      </div>
+
+                      {isEditing && (
+                        <div className="col-span-2">
+                          <div className="flex items-center space-x-2 mb-4">
+                            <Checkbox 
+                              checked={sameAsPermanent}
+                              onCheckedChange={(checked) => {
+                                setSameAsPermanent(checked);
+                                if (checked) {
+                                  handleDonorChange('ResidentCity', editedDonorData.PermanentCity);
+                                }
+                              }}
+                            />
+                            <label className="text-sm text-gray-600">Current residence same as permanent address</label>
+                          </div>
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Permanent City</label>
+                        {isEditing ? (
+                          <Select 
+                            value={editedDonorData.PermanentCity || ''} 
+                            onValueChange={(val) => handleDonorChange('PermanentCity', val)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Permanent City" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {tamilNaduCities.map((city) => (
+                                <SelectItem key={city} value={city}>{city}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <p className="text-gray-900">{selectedItem.PermanentCity || 'Not provided'}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Current City</label>
+                        {isEditing && !sameAsPermanent ? (
+                          <Select 
+                            value={editedDonorData.ResidentCity || ''} 
+                            onValueChange={(val) => handleDonorChange('ResidentCity', val)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Current City" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {tamilNaduCities.map((city) => (
+                                <SelectItem key={city} value={city}>{city}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <p className="text-gray-900">{selectedItem.ResidentCity || 'Not provided'}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+                        {isEditing ? (
+                          <Select 
+                            value={editedDonorData.State || ''} 
+                            onValueChange={(val) => handleDonorChange('State', val)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select State" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {["Tamil Nadu"].map((state) => (
+                                <SelectItem key={state} value={state}>{state}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <p className="text-gray-900">{selectedItem.State}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ) : (

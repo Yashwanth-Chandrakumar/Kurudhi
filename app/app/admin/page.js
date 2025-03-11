@@ -1,5 +1,4 @@
 'use client'
-import Navbar from '@/components/Navbar'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -49,6 +48,7 @@ export default function AdminDashboard() {
   const [requests, setRequests] = useState([])
   const [donors, setDonors] = useState([])
   const [camps, setCamps] = useState([])
+  const [assignedCity, setAssignedCity] = useState('')
   const [stats, setStats] = useState({
     totalRequests: 0,
     currentRequests: 0,
@@ -80,7 +80,29 @@ export default function AdminDashboard() {
   const [actionType, setActionType] = useState('')
   const [showEmergencyDialog, setShowEmergencyDialog] = useState(false)
   const [emergencyLevel, setEmergencyLevel] = useState('')
-  const [assignedCity, setAssignedCity] = useState('')
+
+  // Define fetchRequests BEFORE any useEffect calls
+  const fetchRequests = async () => {
+    // Only fetch if user has proper permissions
+    if (!userRole || (userRole !== 'admin' && userRole !== 'superadmin')) {
+      return;
+    }
+    
+    const requestsCollection = collection(db, 'requests')
+    let requestQuery = requestsCollection;
+    
+    // Filter by assigned city for admin users
+    if (userRole === 'admin' && assignedCity) {
+      requestQuery = query(requestsCollection, where("City", "==", assignedCity));
+    }
+    
+    const requestSnapshot = await getDocs(requestQuery)
+    const requestList = requestSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+    setRequests(requestList)
+  }
 
   // Check user authorization
   useEffect(() => {
@@ -107,15 +129,18 @@ export default function AdminDashboard() {
           
           // Only allow admin or superadmin to access dashboard
           if (userData.role !== 'admin' && userData.role !== 'superadmin') {
-            router.push('/')
+            router.replace('/')
+            return
           }
         } else {
           // No user document found, redirect
-          router.push('/')
+          router.replace('/')
+          return
         }
       } catch (error) {
         console.error('Error checking user role:', error)
-        router.push('/')
+        router.replace('/')
+        return
       } finally {
         setLoading(false)
       }
@@ -127,11 +152,15 @@ export default function AdminDashboard() {
   // Fetch data only if user is authorized
   useEffect(() => {
     if (!user) {
-      router.replace('/login')
       return
     }
 
     const fetchDonors = async () => {
+      // Only fetch if user has proper permissions
+      if (!userRole || (userRole !== 'admin' && userRole !== 'superadmin')) {
+        return;
+      }
+      
       const donorsCollection = collection(db, 'donors')
       const donorSnapshot = await getDocs(donorsCollection)
       const donorList = donorSnapshot.docs.map(doc => ({
@@ -142,11 +171,11 @@ export default function AdminDashboard() {
     }
 
     fetchDonors()
-  }, [user])
+  }, [user, userRole])
 
   // Separate useEffect for fetching requests based on userRole and assignedCity
   useEffect(() => {
-    if (userRole) {
+    if (userRole === 'admin' || userRole === 'superadmin') {
       fetchRequests();
     }
   }, [userRole, assignedCity]);
@@ -252,34 +281,37 @@ export default function AdminDashboard() {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage
   const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem)
 
-  // If loading, show a loading indicator
+  // If loading, show loading spinner
   if (loading) {
     return (
-      <>
-        <Navbar />
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-red-600"></div>
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-red-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
         </div>
-      </>
+      </div>
     )
   }
 
-  // If not authorized, show error message
-  if (!userRole || (userRole !== 'admin' && userRole !== 'superadmin')) {
+  // If not admin or superadmin, show unauthorized message
+  if (userRole !== 'admin' && userRole !== 'superadmin') {
     return (
-      <>
-        <Navbar />
-        <div className="min-h-screen flex flex-col items-center justify-center p-4">
-          <h1 className="text-3xl font-bold text-red-600 mb-4">Access Denied</h1>
-          <p className="text-lg text-gray-700 mb-8">You don't have permission to access this page.</p>
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="text-center max-w-md p-8 bg-white rounded-lg shadow-lg">
+          <div className="text-red-600 text-6xl mb-4">⚠️</div>
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">Access Denied</h1>
+          <p className="text-gray-600 mb-6">
+            You do not have permission to access the admin dashboard. 
+            You will be redirected to the home page.
+          </p>
           <button 
             onClick={() => router.push('/')}
-            className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
           >
             Return to Home
           </button>
         </div>
-      </>
+      </div>
     )
   }
 
@@ -300,24 +332,6 @@ export default function AdminDashboard() {
       setShowConfirmDialog(false);
     }
   };
-
-  // Move fetchRequests outside useEffect so it can be called from updateRequestStatus
-  const fetchRequests = async () => {
-    const requestsCollection = collection(db, 'requests')
-    let requestQuery = requestsCollection;
-    
-    // Filter by assigned city for admin users
-    if (userRole === 'admin' && assignedCity) {
-      requestQuery = query(requestsCollection, where("City", "==", assignedCity));
-    }
-    
-    const requestSnapshot = await getDocs(requestQuery)
-    const requestList = requestSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }))
-    setRequests(requestList)
-  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
