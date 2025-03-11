@@ -1,24 +1,24 @@
 'use client'
-import { initializeApp } from 'firebase/app';
-import { 
-  getFirestore, 
-  collection, 
-  addDoc, 
-  query, 
-  where, 
-  getDocs 
-} from 'firebase/firestore';
-import { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth } from '@/context/AuthContext';
+import { initializeApp } from 'firebase/app';
+import {
+    addDoc,
+    collection,
+    getDocs,
+    getFirestore,
+    query,
+    where
+} from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -32,29 +32,62 @@ const firebaseConfig = {
 
 const tamilNaduCities = [
   "Ambur",
+  "Arakkonam",
+  "Ariyalur",
+  "Aruppukkottai",
+  "Attur",
+  "Chengalpattu",
   "Chennai",
   "Coimbatore",
   "Cuddalore",
+  "Cumbum",
+  "Dharmapuri",
   "Dindigul",
   "Erode",
+  "Gudiyatham",
   "Hosur",
   "Kanchipuram",
-  "Karaikkudi",
+  "Karaikudi",
+  "Karur",
   "Kanyakumari",
-  "Kumbakonam",
   "Kovilpatti",
+  "Krishnagiri",
+  "Kumbakonam",
   "Madurai",
+  "Mayiladuthurai",
+  "Mettupalayam",
   "Nagapattinam",
+  "Namakkal",
   "Nagercoil",
   "Neyveli",
+  "Ooty",
+  "Palani",
+  "Paramakudi",
+  "Perambalur",
+  "Pollachi",
+  "Pudukottai",
   "Rajapalayam",
+  "Ramanathapuram",
+  "Ranipet",
   "Salem",
+  "Sivagangai",
+  "Sivakasi",
+  "Tenkasi",
   "Thanjavur",
+  "Theni",
   "Thoothukudi",
+  "Tirupattur",
+  "Tiruchendur",
   "Tiruchirappalli",
   "Tirunelveli",
   "Tiruppur",
+  "Tiruvallur",
   "Tiruvannamalai",
+  "Tiruvarur",
+  "Tuticorin",
+  "Udumalaipettai",
+  "Valparai",
+  "Vandavasi",
   "Vellore",
   "Viluppuram",
   "Virudhunagar"

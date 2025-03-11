@@ -1,16 +1,16 @@
 'use client'
-import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc } from 'firebase/firestore';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Card, CardContent } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import CryptoJS from "crypto-js";
-import Navbar from '@/components/Navbar';
+import { initializeApp } from 'firebase/app';
+import { addDoc, collection, getFirestore } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 const SECRET_KEY = process.env.NEXT_PUBLIC_UUID_SECRET || "default_secret_key";
 const indianStates = [
@@ -18,29 +18,62 @@ const indianStates = [
 ];
 const tamilNaduCities = [
   "Ambur",
+  "Arakkonam",
+  "Ariyalur",
+  "Aruppukkottai",
+  "Attur",
+  "Chengalpattu",
   "Chennai",
   "Coimbatore",
   "Cuddalore",
+  "Cumbum",
+  "Dharmapuri",
   "Dindigul",
   "Erode",
+  "Gudiyatham",
   "Hosur",
   "Kanchipuram",
-  "Karaikkudi",
+  "Karaikudi",
+  "Karur",
   "Kanyakumari",
-  "Kumbakonam",
   "Kovilpatti",
+  "Krishnagiri",
+  "Kumbakonam",
   "Madurai",
+  "Mayiladuthurai",
+  "Mettupalayam",
   "Nagapattinam",
+  "Namakkal",
   "Nagercoil",
   "Neyveli",
+  "Ooty",
+  "Palani",
+  "Paramakudi",
+  "Perambalur",
+  "Pollachi",
+  "Pudukottai",
   "Rajapalayam",
+  "Ramanathapuram",
+  "Ranipet",
   "Salem",
+  "Sivagangai",
+  "Sivakasi",
+  "Tenkasi",
   "Thanjavur",
+  "Theni",
   "Thoothukudi",
+  "Tirupattur",
+  "Tiruchendur",
   "Tiruchirappalli",
   "Tirunelveli",
   "Tiruppur",
+  "Tiruvallur",
   "Tiruvannamalai",
+  "Tiruvarur",
+  "Tuticorin",
+  "Udumalaipettai",
+  "Valparai",
+  "Vandavasi",
   "Vellore",
   "Viluppuram",
   "Virudhunagar"

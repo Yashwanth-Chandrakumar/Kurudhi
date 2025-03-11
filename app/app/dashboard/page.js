@@ -4,23 +4,23 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import {
-    addDoc,
-    collection,
-    doc,
-    getDoc,
-    getDocs,
-    getFirestore,
-    onSnapshot,
-    query,
-    updateDoc,
-    where
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  onSnapshot,
+  query,
+  updateDoc,
+  where
 } from 'firebase/firestore';
 import html2canvas from 'html2canvas';
 import {
-    Activity, AlertCircle,
-    Check, ChevronDown, ChevronRight, Clock,
-    Droplet,
-    Hospital, Info, MapPin, Share2
+  Activity, AlertCircle,
+  Check, ChevronDown, ChevronRight, Clock,
+  Droplet,
+  Hospital, Info, MapPin, Share2
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -121,9 +121,10 @@ export default function DashboardPage() {
     const q = query(collection(db, "requests"));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const requestsData = [];
-      let pending = 0;
+      let activeRequestsCount = 0;
+      let myBloodTypeRequestsCount = 0;
       let completed = 0;
-      let totalUnits = 0;
+      let totalActiveUnits = 0;
 
       querySnapshot.forEach((doc) => {
         const data = { id: doc.id, ...doc.data() };
@@ -132,26 +133,30 @@ export default function DashboardPage() {
         // Update stats
         if (data.Verified === "completed") {
           completed++;
-        } else {
-          pending++;
+        } else if (data.Verified === "accepted") {
+          activeRequestsCount++;
+          totalActiveUnits += parseInt(data.UnitsNeeded) || 0;
+          
+          // Count requests matching donor's blood type
+          if (donorRecord && data.BloodGroup === donorRecord.BloodGroup) {
+            myBloodTypeRequestsCount++;
+          }
         }
-        
-        totalUnits += parseInt(data.UnitsNeeded) || 0;
       });
       
       setRequests(requestsData);
       setStats({
-        totalRequests: requestsData.length,
-        pendingRequests: pending,
+        totalRequests: activeRequestsCount,
+        pendingRequests: myBloodTypeRequestsCount,
         completedRequests: completed,
-        unitsNeeded: totalUnits
+        unitsNeeded: totalActiveUnits
       });
       
       setIsLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [donorRecord]);
 
   const getStatusColor = (status) => {
     switch(status) {
@@ -555,7 +560,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <div className="stagger-item animate-staggered">
               <StatCard 
-                title="Total Requests" 
+                title="Active Requests" 
                 value={stats.totalRequests} 
                 icon={AlertCircle} 
                 color="border-blue-500" 
@@ -563,7 +568,7 @@ export default function DashboardPage() {
             </div>
             <div className="stagger-item animate-staggered">
               <StatCard 
-                title="Pending Requests" 
+                title="My Blood Type" 
                 value={stats.pendingRequests} 
                 icon={Clock} 
                 color="border-yellow-500" 
@@ -579,7 +584,7 @@ export default function DashboardPage() {
             </div>
             <div className="stagger-item animate-staggered">
               <StatCard 
-                title="Total Units Needed" 
+                title="Active Units Needed" 
                 value={stats.unitsNeeded} 
                 icon={Droplet} 
                 color="border-red-500" 
