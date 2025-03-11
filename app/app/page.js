@@ -1,11 +1,11 @@
 "use client";
-import { useState, useEffect } from 'react';
 import Navbar from "@/components/Navbar";
 import { Activity, ArrowRight, Calendar, Heart, Mail, MapPin, Phone, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, collection, onSnapshot } from 'firebase/firestore';
+import { getApp, getApps, initializeApp } from 'firebase/app';
+import { collection, getFirestore, onSnapshot } from 'firebase/firestore';
 
 // Firebase configuration (using your environment variables)
 const firebaseConfig = {
@@ -114,11 +114,13 @@ export default function Home() {
               </div>
             </div>
             <div className="md:w-1/2 mt-10 md:mt-0 flex justify-center">
-              <img 
-                src="/4414663.jpg"
-                alt="Blood Donation" 
-                className="rounded-md border-8 border-white shadow-2xl animate-float"
-              />
+              <div className="w-full max-w-md px-4">
+                <img 
+                  src="/4414663.jpg"
+                  alt="Blood Donation" 
+                  className="w-full h-[400px] object-cover rounded-2xl border-4 border-white shadow-2xl animate-float"
+                />
+              </div>
             </div>
           </div>
         </section>
