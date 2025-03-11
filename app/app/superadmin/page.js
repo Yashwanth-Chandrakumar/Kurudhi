@@ -22,9 +22,12 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   getFirestore,
   onSnapshot,
-  updateDoc
+  query,
+  updateDoc,
+  where
 } from 'firebase/firestore'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -86,7 +89,7 @@ export default function SuperAdminDashboard() {
 
   // Main tab (sidebar) state. For superadmins we allow:
   // 'requests', 'camps', 'donors', 'manageAdmins'
-  const [activeTab, setActiveTab] = useState('requests')
+  // const [activeTab, setActiveTab] = useState('requests')
   // Sub-tab states (only for requests and camps)
   const [activeRequestFilter, setActiveRequestFilter] = useState('received') // Options: received, accepted, completed, rejected, all
   const [activeCampFilter, setActiveCampFilter] = useState('all') // Options: all, upcoming, ongoing, completed
@@ -130,6 +133,14 @@ export default function SuperAdminDashboard() {
   const [isEditing, setIsEditing] = useState(false);
   const [editedDonorData, setEditedDonorData] = useState(null);
   const [sameAsPermanent, setSameAsPermanent] = useState(false);
+
+  // Add 'users' to possible active tabs
+  const [activeTab, setActiveTab] = useState('requests')
+  
+  // Add state for user details modal
+  const [userDetailsData, setUserDetailsData] = useState(null)
+  const [isUserDetailsModalOpen, setIsUserDetailsModalOpen] = useState(false)
+  const [userDonorData, setUserDonorData] = useState(null)
 
   // Check user authorization
   useEffect(() => {
@@ -392,6 +403,43 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  // Add function to fetch donor data for a user by email
+  const fetchUserDonorData = async (email) => {
+    try {
+      // Query the donors collection for a document with matching email
+      const donorsRef = collection(db, 'donors')
+      const q = query(donorsRef, where("Email", "==", email))
+      const querySnapshot = await getDocs(q)
+      
+      if (!querySnapshot.empty) {
+        // Return the first matching donor record
+        return {
+          id: querySnapshot.docs[0].id,
+          ...querySnapshot.docs[0].data()
+        }
+      }
+      return null
+    } catch (error) {
+      console.error('Error fetching donor data:', error)
+      return null
+    }
+  }
+  
+  // Add function to open user details modal
+  const openUserDetailsModal = async (userData) => {
+    setUserDetailsData(userData)
+    
+    // Check if user has donor data
+    if (userData.email) {
+      const donorData = await fetchUserDonorData(userData.email)
+      setUserDonorData(donorData)
+    } else {
+      setUserDonorData(null)
+    }
+    
+    setIsUserDetailsModalOpen(true)
+  }
+
   // If loading, show a loading indicator
   if (loading) {
     return (
@@ -457,6 +505,14 @@ export default function SuperAdminDashboard() {
             Donors
           </button>
           <button
+            onClick={() => handleSidebarClick('users')}
+            className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
+              activeTab === 'users' ? 'bg-red-600' : 'hover:bg-gray-700'
+            }`}
+          >
+            Users
+          </button>
+          <button
             onClick={() => handleSidebarClick('manageAdmins')}
             className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
               activeTab === 'manageAdmins' ? 'bg-red-600' : 'hover:bg-gray-700'
@@ -467,7 +523,7 @@ export default function SuperAdminDashboard() {
         </nav>
       </aside>
 
-      {/* Mobile Sidebar */}
+      {/* Mobile Sidebar - Update to include Users */}
       <Dialog open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
         <DialogContent className="w-72 bg-gradient-to-b from-blue-900 to-gray-800 text-white p-6">
           <div className="mb-6">
@@ -484,6 +540,9 @@ export default function SuperAdminDashboard() {
             <Link href="#" onClick={() => handleSidebarClick('donors')} className="block px-4 py-2 rounded hover:bg-red-500">
               Donors
             </Link>
+            <Link href="#" onClick={() => handleSidebarClick('users')} className="block px-4 py-2 rounded hover:bg-red-500">
+              Users
+            </Link>
             <Link href="#" onClick={() => handleSidebarClick('manageAdmins')} className="block px-4 py-2 rounded hover:bg-red-500">
               Manage Admins
             </Link>
@@ -491,7 +550,7 @@ export default function SuperAdminDashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* Main Content */}
+      {/* Main Content - Update title to include Users */}
       <div className="flex-1 p-6 md:p-10">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-4xl font-extrabold text-gray-800">
@@ -501,6 +560,8 @@ export default function SuperAdminDashboard() {
               ? 'Blood Camps'
               : activeTab === 'donors'
               ? 'Donors'
+              : activeTab === 'users'
+              ? 'All Users'
               : 'Manage Admins'}
           </h1>
           <button className="md:hidden p-2 rounded bg-gray-200 hover:bg-gray-300 transition" onClick={() => setIsSidebarOpen(true)}>
@@ -686,6 +747,72 @@ export default function SuperAdminDashboard() {
           </div>
         )}
 
+        {/* New Users Section */}
+        {activeTab === 'users' && (
+          <div className="bg-white rounded-xl shadow-lg p-8 mb-10">
+            <div className="mb-6">
+              <input
+                type="text"
+                placeholder="Search by email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="px-6 py-3 font-semibold">Email</th>
+                    <th className="px-6 py-3 font-semibold">Role</th>
+                    <th className="px-6 py-3 font-semibold">Created On</th>
+                    <th className="px-6 py-3 font-semibold">Is Donor</th>
+                    <th className="px-6 py-3 font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allUsers
+                    .filter(u => u.email && u.email.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map(user => {
+                      // Check if user has donor data (based on existence in donors state)
+                      const isDonor = donors.some(donor => donor.Email === user.email);
+                      
+                      return (
+                        <tr key={user.id} className="border-b hover:bg-gray-50 transition">
+                          <td className="px-6 py-4">{user.email}</td>
+                          <td className="px-6 py-4">{user.role || 'user'}</td>
+                          <td className="px-6 py-4">
+                            {user.createdAt ? new Date(user.createdAt.toDate()).toLocaleDateString() : 'N/A'}
+                          </td>
+                          <td className="px-6 py-4">
+                            {isDonor ? (
+                              <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                                Yes
+                              </span>
+                            ) : (
+                              <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-medium">
+                                No
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <Button 
+                              onClick={() => openUserDetailsModal(user)}
+                              className="bg-blue-500 hover:bg-blue-600 text-white"
+                            >
+                              Details
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Update Manage Admins section to include Details button */}
         {activeTab === 'manageAdmins' && (
           <div className="bg-white rounded-xl shadow-lg p-8 mb-10">
             <div className="mb-6">
@@ -704,6 +831,7 @@ export default function SuperAdminDashboard() {
                     <th className="px-6 py-3 font-semibold">Email</th>
                     <th className="px-6 py-3 font-semibold">Current Role</th>
                     <th className="px-6 py-3 font-semibold">Assigned City</th>
+                    <th className="px-6 py-3 font-semibold">Details</th>
                     <th className="px-6 py-3 font-semibold">Actions</th>
                   </tr>
                 </thead>
@@ -713,6 +841,14 @@ export default function SuperAdminDashboard() {
                       <td className="px-6 py-4">{user.email}</td>
                       <td className="px-6 py-4">{user.role || 'user'}</td>
                       <td className="px-6 py-4">{user.role === 'admin' ? (user.assignedCity || 'None assigned') : '-'}</td>
+                      <td className="px-6 py-4">
+                        <Button
+                          onClick={() => openUserDetailsModal(user)}
+                          className="bg-purple-500 hover:bg-purple-600 text-white"
+                        >
+                          View Details
+                        </Button>
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2">
                           {['user', 'admin', 'superadmin']
@@ -1220,6 +1356,157 @@ export default function SuperAdminDashboard() {
                       <p className="font-semibold">Status</p>
                       <p className="capitalize">{selectedItem.CampStatus}</p>
                     </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Add User Details Modal */}
+        <Dialog 
+          open={isUserDetailsModalOpen} 
+          onOpenChange={(open) => { 
+            setIsUserDetailsModalOpen(open); 
+            if (!open) {
+              setUserDetailsData(null);
+              setUserDonorData(null);
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold">User Details</DialogTitle>
+            </DialogHeader>
+            
+            {userDetailsData && (
+              <div className="space-y-6">
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                  <h3 className="text-lg font-semibold text-blue-800 mb-3">User Account Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Email</label>
+                      <p className="text-gray-900">{userDetailsData.email}</p>
+                    </div>
+                    
+                    {userDetailsData.role === 'admin' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Assigned City</label>
+                        <p className="text-gray-900">{userDetailsData.assignedCity || 'None assigned'}</p>
+                      </div>
+                    )}
+                    
+                    
+                    {/* Display any custom user fields */}
+                    {Object.entries(userDetailsData)
+                      .filter(([key]) => !['id', 'email', 'role', 'createdAt', 'lastLogin', 'assignedCity'].includes(key))
+                      .map(([key, value]) => (
+                        <div key={key}>
+                          <label className="block text-sm font-medium text-gray-700 capitalize">
+                            {key.replace(/([A-Z])/g, ' $1').trim()}
+                          </label>
+                          <p className="text-gray-900">
+                            {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                          </p>
+                        </div>
+                      ))
+                    }
+                  </div>
+                </div>
+                
+                {userDonorData ? (
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-100">
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="text-lg font-semibold text-green-800">Donor Information</h3>
+                      <Button 
+                        onClick={() => {
+                          setSelectedItem(userDonorData);
+                          setModalType('donor');
+                          setEditedDonorData(userDonorData);
+                          setSameAsPermanent(userDonorData.PermanentCity === userDonorData.ResidentCity);
+                          setIsModalOpen(true);
+                          setIsUserDetailsModalOpen(false);
+                        }}
+                        className="bg-green-600 hover:bg-green-700 text-white text-sm"
+                      >
+                        Edit Donor Details
+                      </Button>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="col-span-2 flex justify-center mb-4">
+                        {userDonorData.profile_picture ? (
+                          <Image 
+                            src={userDonorData.profile_picture} 
+                            alt={userDonorData.Name} 
+                            width={100} 
+                            height={100} 
+                            className="rounded-full object-cover border-4 border-green-100"
+                          />
+                        ) : (
+                          <div className="w-24 h-24 rounded-full bg-green-100 flex items-center justify-center">
+                            <span className="text-green-600 font-bold text-2xl">
+                              {userDonorData.Name && userDonorData.Name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Name</label>
+                        <p className="text-gray-900">{userDonorData.Name}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Blood Group</label>
+                        <p className="text-gray-900">{userDonorData.BloodGroup}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Mobile Number</label>
+                        <p className="text-gray-900">{userDonorData.MobileNumber}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">WhatsApp Number</label>
+                        <p className="text-gray-900">{userDonorData.WhatsappNumber}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Permanent City</label>
+                        <p className="text-gray-900">{userDonorData.PermanentCity || 'Not provided'}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Current City</label>
+                        <p className="text-gray-900">{userDonorData.ResidentCity || 'Not provided'}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">State</label>
+                        <p className="text-gray-900">{userDonorData.State}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Last Donation Date</label>
+                        <p className="text-gray-900">{userDonorData.lastDonationDate || 'No donations recorded'}</p>
+                      </div>
+                      
+                      {/* Display any other donor fields not explicitly listed */}
+                      {Object.entries(userDonorData)
+                        .filter(([key]) => !['id', 'Name', 'BloodGroup', 'Email', 'MobileNumber', 
+                                            'WhatsappNumber', 'PermanentCity', 'ResidentCity', 
+                                            'State', 'lastDonationDate', 'profile_picture'].includes(key))
+                        .map(([key, value]) => (
+                          <div key={key}>
+                            <label className="block text-sm font-medium text-gray-700 capitalize">
+                              {key.replace(/([A-Z])/g, ' $1').trim()}
+                            </label>
+                            <p className="text-gray-900">
+                              {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                            </p>
+                          </div>
+                        ))
+                      }
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 text-center">
+                    <p className="text-gray-600">This user is not registered as a donor.</p>
+                    <p className="text-sm text-gray-500 mt-1">No donor profile found with this email address.</p>
                   </div>
                 )}
               </div>
