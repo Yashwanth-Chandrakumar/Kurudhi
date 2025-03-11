@@ -2,21 +2,22 @@
 import Navbar from '@/components/Navbar'
 import { Button } from '@/components/ui/button'
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
 } from '@/components/ui/dialog'
 import { useAuth } from '@/context/AuthContext'
 import { getApp, getApps, initializeApp } from 'firebase/app'
 import {
-    collection,
-    doc,
-    getDoc,
-    getFirestore,
-    onSnapshot,
-    updateDoc
+  collection,
+  doc,
+  getDoc,
+  getFirestore,
+  onSnapshot,
+  updateDoc
 } from 'firebase/firestore'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -516,6 +517,7 @@ export default function SuperAdminDashboard() {
               <table className="min-w-full text-left">
                 <thead>
                   <tr className="bg-gray-100">
+                    <th className="px-6 py-3 font-semibold">Profile</th>
                     <th className="px-6 py-3 font-semibold">Name</th>
                     <th className="px-6 py-3 font-semibold">Blood Group</th>
                     <th className="px-6 py-3 font-semibold">Mobile</th>
@@ -525,6 +527,23 @@ export default function SuperAdminDashboard() {
                 <tbody>
                   {currentItems.map(donor => (
                     <tr key={donor.id} className="border-b hover:bg-gray-50 transition">
+                      <td className="px-6 py-4">
+                        {donor.profile_picture ? (
+                          <Image 
+                            src={donor.profile_picture} 
+                            alt={donor.Name} 
+                            width={40} 
+                            height={40} 
+                            className="rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                            <span className="text-red-600 font-semibold text-sm">
+                              {donor.Name && donor.Name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                      </td>
                       <td className="px-6 py-4">{donor.Name}</td>
                       <td className="px-6 py-4">{donor.BloodGroup}</td>
                       <td className="px-6 py-4">{donor.MobileNumber}</td>
@@ -766,6 +785,23 @@ export default function SuperAdminDashboard() {
                   </div>
                 ) : modalType === 'donor' ? (
                   <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2 flex justify-center mb-4">
+                      {selectedItem.profile_picture ? (
+                        <Image 
+                          src={selectedItem.profile_picture} 
+                          alt={selectedItem.Name} 
+                          width={100} 
+                          height={100} 
+                          className="rounded-full object-cover border-4 border-red-100"
+                        />
+                      ) : (
+                        <div className="w-24 h-24 rounded-full bg-red-100 flex items-center justify-center">
+                          <span className="text-red-600 font-bold text-2xl">
+                            {selectedItem.Name && selectedItem.Name.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                     <div>
                       <p className="font-semibold">Name</p>
                       <p>{selectedItem.Name}</p>
@@ -783,12 +819,12 @@ export default function SuperAdminDashboard() {
                       <p>{selectedItem.MobileNumber}</p>
                     </div>
                     <div>
-                      <p className="font-semibold">Permanent Address</p>
-                      <p>{selectedItem.PermanentAddress}</p>
+                      <p className="font-semibold">Permanent City</p>
+                      <p className="text-gray-700">{selectedItem.PermanentCity || 'Not provided'}</p>
                     </div>
                     <div>
-                      <p className="font-semibold">Residential Address</p>
-                      <p>{selectedItem.ResidentialAddress}</p>
+                      <p className="font-semibold">Residential City</p>
+                      <p className="text-gray-700">{selectedItem.ResidentCity || 'Not provided'}</p>
                     </div>
                     <div>
                       <p className="font-semibold">State</p>
