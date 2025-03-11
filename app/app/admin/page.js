@@ -16,7 +16,9 @@ import {
   getDocs,
   getFirestore,
   onSnapshot,
-  updateDoc
+  query,
+  updateDoc,
+  where
 } from 'firebase/firestore'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -78,24 +80,32 @@ export default function AdminDashboard() {
   const [actionType, setActionType] = useState('')
   const [showEmergencyDialog, setShowEmergencyDialog] = useState(false)
   const [emergencyLevel, setEmergencyLevel] = useState('')
+  const [assignedCity, setAssignedCity] = useState('')
 
   // Check user authorization
   useEffect(() => {
-    const checkUserRole = async () => {
-      if (!user) {
-        router.push('/')
-        return
-      }
+    if (!user) {
+      router.replace('/login')
+      return
+    }
 
+    const checkUserRole = async () => {
+      setLoading(true)
       try {
         const userRef = doc(db, 'users', user.uid)
-        const docSnap = await getDoc(userRef)
+        const userSnap = await getDoc(userRef)
         
-        if (docSnap.exists()) {
-          const userData = docSnap.data()
+        if (userSnap.exists()) {
+          const userData = userSnap.data()
+          // Get user role
           setUserRole(userData.role)
           
-          // If not admin or superadmin, redirect to home
+          // Get assigned city for admin
+          if (userData.role === 'admin') {
+            setAssignedCity(userData.assignedCity || '')
+          }
+          
+          // Only allow admin or superadmin to access dashboard
           if (userData.role !== 'admin' && userData.role !== 'superadmin') {
             router.push('/')
           }
@@ -131,19 +141,15 @@ export default function AdminDashboard() {
       setDonors(donorList)
     }
 
-    const fetchRequests = async () => {
-      const requestsCollection = collection(db, 'requests')
-      const requestSnapshot = await getDocs(requestsCollection)
-      const requestList = requestSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
-      setRequests(requestList)
-    }
-
     fetchDonors()
-    fetchRequests()
-  }, [user, userRole])
+  }, [user])
+
+  // Separate useEffect for fetching requests based on userRole and assignedCity
+  useEffect(() => {
+    if (userRole) {
+      fetchRequests();
+    }
+  }, [userRole, assignedCity]);
 
   // Fetch camps in real time  
   useEffect(() => {
@@ -298,7 +304,14 @@ export default function AdminDashboard() {
   // Move fetchRequests outside useEffect so it can be called from updateRequestStatus
   const fetchRequests = async () => {
     const requestsCollection = collection(db, 'requests')
-    const requestSnapshot = await getDocs(requestsCollection)
+    let requestQuery = requestsCollection;
+    
+    // Filter by assigned city for admin users
+    if (userRole === 'admin' && assignedCity) {
+      requestQuery = query(requestsCollection, where("City", "==", assignedCity));
+    }
+    
+    const requestSnapshot = await getDocs(requestQuery)
     const requestList = requestSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
@@ -313,6 +326,11 @@ export default function AdminDashboard() {
         <div>
           <h2 className="text-3xl font-extrabold tracking-tight">Admin Dashboard</h2>
           <p className="text-sm opacity-70">Manage your operations</p>
+          {assignedCity && (
+            <div className="mt-2 px-3 py-1 bg-blue-600 text-white text-sm font-medium rounded-full inline-block">
+              {assignedCity} City Admin
+            </div>
+          )}
         </div>
         <nav className="flex-1 space-y-4">
           <button
@@ -373,6 +391,11 @@ export default function AdminDashboard() {
               ? 'Blood Camps'
               : 'Donors'}
           </h1>
+          {assignedCity && (
+            <div className="px-4 py-2 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
+              Managing {assignedCity}
+            </div>
+          )}
           <button className="md:hidden p-2 rounded bg-gray-200 hover:bg-gray-300 transition" onClick={() => setIsSidebarOpen(true)}>
             <svg className="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"></path>

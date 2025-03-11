@@ -7,6 +7,13 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import { useAuth } from '@/context/AuthContext'
 import { getApp, getApps, initializeApp } from 'firebase/app'
 import {
@@ -37,6 +44,18 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp()
 const db = getFirestore(app)
+
+// Add Tamil Nadu cities list from profile page
+const tamilNaduCities = [
+  "Ambur", "Arakkonam", "Ariyalur", "Aruppukkottai", "Attur", "Chengalpattu", "Chennai", 
+  "Coimbatore", "Cuddalore", "Cumbum", "Dharmapuri", "Dindigul", "Erode", "Gudiyatham", 
+  "Hosur", "Kanchipuram", "Karaikudi", "Karur", "Kanyakumari", "Kovilpatti", "Krishnagiri", 
+  "Kumbakonam", "Madurai", "Mayiladuthurai", "Mettupalayam", "Nagapattinam", "Namakkal", 
+  "Nagercoil", "Neyveli", "Ooty", "Palani", "Paramakudi", "Perambalur", "Pollachi", 
+  "Pudukkottai", "Rajapalayam", "Ramanathapuram", "Ranipet", "Salem", "Sivakasi", 
+  "Thanjavur", "Theni", "Thoothukudi", "Tiruchirappalli", "Tirunelveli", "Tiruppur", 
+  "Tiruvallur", "Tiruvannamalai", "Tiruvarur", "Vellore", "Viluppuram", "Virudhunagar"
+];
 
 export default function SuperAdminDashboard() {
   const { user } = useAuth()
@@ -98,8 +117,12 @@ export default function SuperAdminDashboard() {
     open: false,
     userId: '',
     email: '',
-    newRole: ''
+    newRole: '',
+    city: ''
   })
+
+  // Add state for selected city
+  const [selectedCity, setSelectedCity] = useState('');
 
   // Check user authorization
   useEffect(() => {
@@ -276,25 +299,38 @@ export default function SuperAdminDashboard() {
     setIsSidebarOpen(false)
   }
 
-  // Update a user's role (for Manage Admins)
-  const handleSetRole = async (uid, email, role) => {
+  // Update a user's role and assigned city (for Manage Admins)
+  const handleSetRole = async (uid, email, role, city = null) => {
     try {
-      await updateDoc(doc(db, 'users', uid), { role })
-      alert(`User ${email} is now ${role}`)
+      const updateData = { role };
+      
+      // Only include city for admins
+      if (role === 'admin' && city) {
+        updateData.assignedCity = city;
+      } else if (role !== 'admin') {
+        // Remove assignedCity if user is not an admin
+        updateData.assignedCity = null;
+      }
+      
+      await updateDoc(doc(db, 'users', uid), updateData);
+      toast.success(`User ${email} is now ${role}${role === 'admin' && city ? ` for ${city}` : ''}`);
     } catch (error) {
-      console.error("Error setting role:", error)
-      alert("Failed to set role")
+      console.error("Error setting role:", error);
+      toast.error("Failed to set role");
     }
   }
 
-  // Open role-change confirmation modal
+  // Open role-change confirmation modal - update to include city
   const handleRoleChangeClick = (uid, email, role) => {
+    setSelectedCity(''); // Reset selected city
+    
     setRoleConfirmModal({
       open: true,
       userId: uid,
       email,
-      newRole: role
-    })
+      newRole: role,
+      city: ''
+    });
   }
 
   // Filter data based on active tab and sub-tab selections
@@ -630,6 +666,7 @@ export default function SuperAdminDashboard() {
                   <tr className="bg-gray-100">
                     <th className="px-6 py-3 font-semibold">Email</th>
                     <th className="px-6 py-3 font-semibold">Current Role</th>
+                    <th className="px-6 py-3 font-semibold">Assigned City</th>
                     <th className="px-6 py-3 font-semibold">Actions</th>
                   </tr>
                 </thead>
@@ -638,6 +675,7 @@ export default function SuperAdminDashboard() {
                     <tr key={user.id} className="border-b hover:bg-gray-50 transition">
                       <td className="px-6 py-4">{user.email}</td>
                       <td className="px-6 py-4">{user.role || 'user'}</td>
+                      <td className="px-6 py-4">{user.role === 'admin' ? (user.assignedCity || 'None assigned') : '-'}</td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2">
                           {['user', 'admin', 'superadmin']
@@ -779,7 +817,7 @@ export default function SuperAdminDashboard() {
           </DialogContent>
         </Dialog>
 
-        {/* Role Change Confirmation Modal */}
+        {/* Role Change Confirmation Modal - Update to include city selection for admins */}
         <Dialog open={roleConfirmModal.open} onOpenChange={(open) => setRoleConfirmModal({ ...roleConfirmModal, open })}>
           <DialogContent className="sm:max-w-[400px]">
             <DialogHeader>
@@ -788,14 +826,46 @@ export default function SuperAdminDashboard() {
             <p>
               Are you sure you want to change the role of {roleConfirmModal.email} to {roleConfirmModal.newRole}?
             </p>
+            
+            {/* Add city selection for admin role */}
+            {roleConfirmModal.newRole === 'admin' && (
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Assign City
+                </label>
+                <Select value={selectedCity} onValueChange={setSelectedCity}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a city" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tamilNaduCities.map(city => (
+                      <SelectItem key={city} value={city}>{city}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!selectedCity && (
+                  <p className="text-sm text-red-500 mt-1">
+                    Please select a city for admin
+                  </p>
+                )}
+              </div>
+            )}
+            
             <div className="mt-4 flex justify-end space-x-2">
               <Button variant="outline" onClick={() => setRoleConfirmModal({ ...roleConfirmModal, open: false })}>
                 Cancel
               </Button>
-              <Button onClick={() => {
-                handleSetRole(roleConfirmModal.userId, roleConfirmModal.email, roleConfirmModal.newRole)
-                setRoleConfirmModal({ ...roleConfirmModal, open: false })
-              }}>
+              <Button 
+                onClick={() => {
+                  if (roleConfirmModal.newRole === 'admin' && !selectedCity) {
+                    toast.error('Please select a city for admin');
+                    return;
+                  }
+                  handleSetRole(roleConfirmModal.userId, roleConfirmModal.email, roleConfirmModal.newRole, selectedCity);
+                  setRoleConfirmModal({ ...roleConfirmModal, open: false });
+                }}
+                disabled={roleConfirmModal.newRole === 'admin' && !selectedCity}
+              >
                 Confirm
               </Button>
             </div>
