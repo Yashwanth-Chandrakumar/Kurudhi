@@ -4,23 +4,23 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import {
-  addDoc,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  onSnapshot,
-  query,
-  updateDoc,
-  where
+    addDoc,
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    getFirestore,
+    onSnapshot,
+    query,
+    updateDoc,
+    where
 } from 'firebase/firestore';
 import html2canvas from 'html2canvas';
 import {
-  Activity, AlertCircle,
-  Check, ChevronDown, ChevronRight, Clock,
-  Droplet,
-  Hospital, Info, MapPin, Share2
+    Activity, AlertCircle,
+    Check, ChevronDown, ChevronRight, Clock,
+    Droplet,
+    Hospital, Info, MapPin, Share2
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -395,7 +395,18 @@ export default function DashboardPage() {
                 <h2 className="text-xl font-bold text-gray-800">{request.PatientName}</h2>
                 <span className={`${getBloodGroupColor(request.BloodGroup)} px-2 py-1 rounded-full text-xs font-bold`}>
                   {request.BloodGroup}
-          </span>
+                </span>
+                {request.EmergencyLevel && (
+                  <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                    request.EmergencyLevel === 'high' ? 'bg-red-100 text-red-800 border border-red-300' :
+                    request.EmergencyLevel === 'medium' ? 'bg-orange-100 text-orange-800 border border-orange-300' :
+                    'bg-yellow-100 text-yellow-800 border border-yellow-300'
+                  }`}>
+                    {request.EmergencyLevel === 'high' ? 'High Emergency' :
+                     request.EmergencyLevel === 'medium' ? 'Medium Emergency' :
+                     'Low Emergency'}
+                  </span>
+                )}
               </div>
               <div className="flex items-center mt-1 text-gray-500 text-sm">
                 <Hospital className="w-4 h-4 mr-1" /> {request.Hospital}
@@ -529,6 +540,19 @@ export default function DashboardPage() {
                     <p><span className="text-gray-500">Blood Group:</span> {request.BloodGroup}</p>
                     <p><span className="text-gray-500">Units Needed:</span> {request.UnitsNeeded}</p>
                     <p><span className="text-gray-500">Units Pending:</span> {request.UnitsNeeded - (request.UnitsDonated || 0)}</p>
+                    {request.EmergencyLevel && (
+                      <p>
+                        <span className="text-gray-500">Emergency Level:</span> 
+                        <span className={`ml-1 inline-block px-2 py-0.5 rounded-full text-xs font-bold ${
+                          request.EmergencyLevel === 'high' ? 'bg-red-100 text-red-800' :
+                          request.EmergencyLevel === 'medium' ? 'bg-orange-100 text-orange-800' :
+                          'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {request.EmergencyLevel === 'high' ? 'High' :
+                           request.EmergencyLevel === 'medium' ? 'Medium' : 'Low'}
+                        </span>
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">

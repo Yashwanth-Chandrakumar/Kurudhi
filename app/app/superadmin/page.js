@@ -21,6 +21,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { toast } from 'react-hot-toast'
 
 // Firebase configuration
 const firebaseConfig = {
@@ -77,25 +78,28 @@ export default function SuperAdminDashboard() {
   const [selectedItem, setSelectedItem] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalType, setModalType] = useState(null)
-  const [confirmModal, setConfirmModal] = useState({
-    open: false,
-    action: '',
-    requestId: null,
-    message: ''
-  })
-  // Role-change confirmation modal (for Manage Admins)
-  const [roleConfirmModal, setRoleConfirmModal] = useState({
-    open: false,
-    userId: null,
-    email: '',
-    newRole: ''
-  })
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [actionId, setActionId] = useState('')
+  const [actionType, setActionType] = useState('')
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
+
+  // Add emergency level state variables
+  const [showEmergencyDialog, setShowEmergencyDialog] = useState(false)
+  const [emergencyLevel, setEmergencyLevel] = useState('')
 
   // Search state for Manage Admins
   const [searchQuery, setSearchQuery] = useState('')
 
   // Mobile sidebar state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+
+  // Role Change Confirmation Modal
+  const [roleConfirmModal, setRoleConfirmModal] = useState({
+    open: false,
+    userId: '',
+    email: '',
+    newRole: ''
+  })
 
   // Check user authorization
   useEffect(() => {
@@ -211,31 +215,45 @@ export default function SuperAdminDashboard() {
     }
   }, [user, userRole])
 
-  // Function to update a request's status (with confirmation)
-  const updateRequestStatus = async (id, status) => {
+  // Update request status function
+  const updateRequestStatus = async (id, status, emergencyLevel = null) => {
     try {
       const requestRef = doc(db, 'requests', id)
-      await updateDoc(requestRef, { Verified: status })
-      setRequests(prev =>
-        prev.map(req =>
-          req.id === id ? { ...req, Verified: status } : req
-        )
-      )
-      alert(`Request ${status} successfully`)
+      const updateData = {
+        Verified: status
+      }
+      
+      // Add emergency level if provided
+      if (emergencyLevel) {
+        updateData.EmergencyLevel = emergencyLevel
+      }
+      
+      await updateDoc(requestRef, updateData)
+      toast.success(`Request ${status} successfully`)
     } catch (error) {
       console.error('Error updating request:', error)
-      alert('Failed to update request')
+      toast.error('Failed to update request')
     }
   }
 
-  // Open confirmation modal for request actions
+  // Handle confirm action
   const handleConfirmAction = (id, action) => {
-    setConfirmModal({
-      open: true,
-      action, // 'accepted', 'rejected', or 'completed'
-      requestId: id,
-      message: `Are you sure you want to ${action} this request?`
-    })
+    setActionId(id)
+    setActionType(action)
+    
+    if (action === 'accepted') {
+      setEmergencyLevel('') // Reset emergency level
+      setShowEmergencyDialog(true)
+    } else {
+      setShowConfirmDialog(true)
+    }
+  }
+
+  const handleConfirm = () => {
+    if (actionType) {
+      updateRequestStatus(actionId, actionType)
+      setShowConfirmDialog(false)
+    }
   }
 
   // Open details modal for any item
@@ -664,29 +682,99 @@ export default function SuperAdminDashboard() {
           </div>
         )}
 
-        {/* Confirmation Modal for Request Actions */}
-        <Dialog open={confirmModal.open} onOpenChange={(open) => setConfirmModal({ ...confirmModal, open })}>
+        {/* Confirm Dialog */}
+        <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
           <DialogContent className="sm:max-w-[400px]">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold">
-                {confirmModal.action === 'accepted'
+                {actionType === 'accepted'
                   ? 'Confirm Accept'
-                  : confirmModal.action === 'rejected'
+                  : actionType === 'rejected'
                   ? 'Confirm Reject'
                   : 'Confirm Complete'}
               </DialogTitle>
             </DialogHeader>
-            <p>{confirmModal.message}</p>
+            <p>Are you sure you want to {actionType} this request?</p>
             <div className="mt-4 flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setConfirmModal({ ...confirmModal, open: false })}>
+              <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
                 Cancel
               </Button>
-              <Button onClick={() => {
-                updateRequestStatus(confirmModal.requestId, confirmModal.action)
-                setConfirmModal({ ...confirmModal, open: false })
-              }}>
+              <Button onClick={handleConfirm}>
                 Confirm
               </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Emergency Level Dialog */}
+        <Dialog open={showEmergencyDialog} onOpenChange={setShowEmergencyDialog}>
+          <DialogContent className="bg-white rounded-lg shadow-xl max-w-md mx-auto">
+            <div className="p-6">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">Select Emergency Level</h2>
+              <p className="text-gray-600 mb-6">Please select the emergency level for this request before accepting:</p>
+              
+              <div className="space-y-4 mb-6">
+                <div 
+                  className={`p-4 rounded-lg cursor-pointer border-2 ${emergencyLevel === 'high' ? 'border-red-600 bg-red-50' : 'border-gray-200 hover:border-red-300'}`}
+                  onClick={() => setEmergencyLevel('high')}
+                >
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 rounded-full bg-red-600 mr-3"></div>
+                    <div>
+                      <p className="font-semibold text-gray-800">High Emergency</p>
+                      <p className="text-sm text-gray-600">Critical condition, urgent attention needed</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div 
+                  className={`p-4 rounded-lg cursor-pointer border-2 ${emergencyLevel === 'medium' ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-orange-300'}`}
+                  onClick={() => setEmergencyLevel('medium')}
+                >
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 rounded-full bg-orange-500 mr-3"></div>
+                    <div>
+                      <p className="font-semibold text-gray-800">Medium Emergency</p>
+                      <p className="text-sm text-gray-600">Requires prompt attention</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div 
+                  className={`p-4 rounded-lg cursor-pointer border-2 ${emergencyLevel === 'low' ? 'border-yellow-500 bg-yellow-50' : 'border-gray-200 hover:border-yellow-300'}`}
+                  onClick={() => setEmergencyLevel('low')}
+                >
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 rounded-full bg-yellow-500 mr-3"></div>
+                    <div>
+                      <p className="font-semibold text-gray-800">Low Emergency</p>
+                      <p className="text-sm text-gray-600">Standard procedure, not time-critical</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowEmergencyDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (!emergencyLevel) {
+                      toast.error('Please select an emergency level');
+                      return;
+                    }
+                    updateRequestStatus(actionId, 'accepted', emergencyLevel);
+                    setShowEmergencyDialog(false);
+                  }}
+                  disabled={!emergencyLevel}
+                >
+                  Accept Request
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

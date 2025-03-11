@@ -2,26 +2,27 @@
 import Navbar from '@/components/Navbar'
 import { Button } from '@/components/ui/button'
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
 } from '@/components/ui/dialog'
 import { useAuth } from '@/context/AuthContext'
 import { getApp, getApps, initializeApp } from 'firebase/app'
 import {
-    collection,
-    doc,
-    getDoc,
-    getDocs,
-    getFirestore,
-    onSnapshot,
-    updateDoc
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  onSnapshot,
+  updateDoc
 } from 'firebase/firestore'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { toast } from 'react-hot-toast'
 
 // Firebase configuration
 const firebaseConfig = {
@@ -72,6 +73,11 @@ export default function AdminDashboard() {
     message: ''
   })
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [actionId, setActionId] = useState('')
+  const [actionType, setActionType] = useState('')
+  const [showEmergencyDialog, setShowEmergencyDialog] = useState(false)
+  const [emergencyLevel, setEmergencyLevel] = useState('')
 
   // Check user authorization
   useEffect(() => {
@@ -110,7 +116,8 @@ export default function AdminDashboard() {
 
   // Fetch data only if user is authorized
   useEffect(() => {
-    if (!user || (userRole !== 'admin' && userRole !== 'superadmin')) {
+    if (!user) {
+      router.replace('/login')
       return
     }
 
@@ -168,30 +175,38 @@ export default function AdminDashboard() {
   }, [])
 
   // Update request status function with confirmation
-  const updateRequestStatus = async (id, status) => {
+  const updateRequestStatus = async (id, status, emergencyLevel = null) => {
     try {
       const requestRef = doc(db, 'requests', id)
-      await updateDoc(requestRef, { Verified: status })
-      setRequests(prev =>
-        prev.map(req =>
-          req.id === id ? { ...req, Verified: status } : req
-        )
-      )
-      alert(`Request ${status} successfully`)
+      const updateData = {
+        Verified: status
+      }
+      
+      // Add emergency level if provided
+      if (emergencyLevel) {
+        updateData.EmergencyLevel = emergencyLevel
+      }
+      
+      await updateDoc(requestRef, updateData)
+      toast.success(`Request ${status} successfully`)
+      fetchRequests()
     } catch (error) {
       console.error('Error updating request:', error)
-      alert('Failed to update request')
+      toast.error('Failed to update request')
     }
   }
 
   // Opens the confirmation modal for any action
   const handleConfirmAction = (id, action) => {
-    setConfirmModal({
-      open: true,
-      action,
-      requestId: id,
-      message: `Are you sure you want to ${action} this request?`
-    })
+    setActionId(id)
+    setActionType(action)
+    
+    if (action === 'accepted') {
+      setEmergencyLevel('') // Reset emergency level
+      setShowEmergencyDialog(true)
+    } else {
+      setShowConfirmDialog(true)
+    }
   }
 
   // Open details modal for an item
@@ -260,6 +275,35 @@ export default function AdminDashboard() {
         </div>
       </>
     )
+  }
+
+  // Add a new function to handle setting emergency and then accepting
+  const handleAcceptWithEmergency = () => {
+    if (!emergencyLevel) {
+      toast.error('Please select an emergency level before accepting')
+      return
+    }
+    
+    updateRequestStatus(actionId, 'accepted', emergencyLevel)
+    setShowEmergencyDialog(false)
+  }
+
+  const handleConfirm = () => {
+    if (actionType) {
+      updateRequestStatus(actionId, actionType);
+      setShowConfirmDialog(false);
+    }
+  };
+
+  // Move fetchRequests outside useEffect so it can be called from updateRequestStatus
+  const fetchRequests = async () => {
+    const requestsCollection = collection(db, 'requests')
+    const requestSnapshot = await getDocs(requestsCollection)
+    const requestList = requestSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+    setRequests(requestList)
   }
 
   return (
@@ -534,204 +578,275 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Confirmation Modal for Actions */}
-        <Dialog open={confirmModal.open} onOpenChange={(open) => setConfirmModal({ ...confirmModal, open })}>
+        {/* Original Confirm Dialog */}
+        <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
           <DialogContent className="sm:max-w-[400px]">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold">
-                {confirmModal.action === 'accepted'
+                {actionType === 'accepted'
                   ? 'Confirm Accept'
-                  : confirmModal.action === 'rejected'
+                  : actionType === 'rejected'
                   ? 'Confirm Reject'
                   : 'Confirm Complete'}
               </DialogTitle>
             </DialogHeader>
             <p>{confirmModal.message}</p>
             <div className="mt-4 flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setConfirmModal({ ...confirmModal, open: false })}>
+              <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
                 Cancel
               </Button>
-              <Button onClick={() => {
-                updateRequestStatus(confirmModal.requestId, confirmModal.action)
-                setConfirmModal({ ...confirmModal, open: false })
-              }}>
+              <Button onClick={handleConfirm}>
                 Confirm
               </Button>
             </div>
           </DialogContent>
         </Dialog>
 
+        {/* Add Emergency Level Dialog */}
+        <Dialog open={showEmergencyDialog} onOpenChange={setShowEmergencyDialog}>
+          <DialogContent className="bg-white rounded-lg shadow-xl max-w-md mx-auto">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold text-gray-800">Select Emergency Level</DialogTitle>
+            </DialogHeader>
+            <div className="p-6">
+              <p className="text-gray-600 mb-6">Please select the emergency level for this request before accepting:</p>
+              
+              <div className="space-y-4 mb-6">
+                <div 
+                  className={`p-4 rounded-lg cursor-pointer border-2 ${emergencyLevel === 'high' ? 'border-red-600 bg-red-50' : 'border-gray-200 hover:border-red-300'}`}
+                  onClick={() => setEmergencyLevel('high')}
+                >
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 rounded-full bg-red-600 mr-3"></div>
+                    <div>
+                      <p className="font-semibold text-gray-800">High Emergency</p>
+                      <p className="text-sm text-gray-600">Critical condition, urgent attention needed</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div 
+                  className={`p-4 rounded-lg cursor-pointer border-2 ${emergencyLevel === 'medium' ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-orange-300'}`}
+                  onClick={() => setEmergencyLevel('medium')}
+                >
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 rounded-full bg-orange-500 mr-3"></div>
+                    <div>
+                      <p className="font-semibold text-gray-800">Medium Emergency</p>
+                      <p className="text-sm text-gray-600">Requires prompt attention</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div 
+                  className={`p-4 rounded-lg cursor-pointer border-2 ${emergencyLevel === 'low' ? 'border-yellow-500 bg-yellow-50' : 'border-gray-200 hover:border-yellow-300'}`}
+                  onClick={() => setEmergencyLevel('low')}
+                >
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 rounded-full bg-yellow-500 mr-3"></div>
+                    <div>
+                      <p className="font-semibold text-gray-800">Low Emergency</p>
+                      <p className="text-sm text-gray-600">Standard procedure, not time-critical</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowEmergencyDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (!emergencyLevel) {
+                      toast.error('Please select an emergency level');
+                      return;
+                    }
+                    updateRequestStatus(actionId, 'accepted', emergencyLevel);
+                    setShowEmergencyDialog(false);
+                  }}
+                  disabled={!emergencyLevel}
+                >
+                  Accept Request
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Details Modal */}
-        <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if (!open) setSelectedItem(null) }}>
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold">
-                {modalType === 'request'
-                  ? 'Request Details'
-                  : modalType === 'donor'
-                  ? 'Donor Details'
-                  : 'Camp Details'}
+                {modalType === 'request' ? 'Request Details' : 
+                 modalType === 'donor' ? 'Donor Details' : 'Camp Details'}
               </DialogTitle>
             </DialogHeader>
-            {selectedItem && (
-              <div className="space-y-4 mt-4">
-                {modalType === 'request' ? (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="font-semibold">Attender Mobile</p>
-                      <p>{selectedItem.AttenderMobile}</p>
+            <div className="p-6">
+              {selectedItem && (
+                <div className="space-y-4 mt-4">
+                  {modalType === 'request' ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="font-semibold">Attender Mobile</p>
+                        <p>{selectedItem.AttenderMobile}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Attender Name</p>
+                        <p>{selectedItem.AttenderName}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Blood Group</p>
+                        <p>{selectedItem.BloodGroup}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">City</p>
+                        <p>{selectedItem.City}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Country</p>
+                        <p>{selectedItem.Country}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Gender</p>
+                        <p>{selectedItem.Gender}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Hospital</p>
+                        <p>{selectedItem.Hospital}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Patient Age</p>
+                        <p>{selectedItem.PatientAge}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Patient Name</p>
+                        <p>{selectedItem.PatientName}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Reason</p>
+                        <p>{selectedItem.Reason}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">State</p>
+                        <p>{selectedItem.State}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Units Needed</p>
+                        <p>{selectedItem.UnitsNeeded}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Verified</p>
+                        <p>{selectedItem.Verified}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold">Attender Name</p>
-                      <p>{selectedItem.AttenderName}</p>
+                  ) : modalType === 'donor' ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="col-span-2 flex justify-center mb-4">
+                        {selectedItem.profile_picture ? (
+                          <Image 
+                            src={selectedItem.profile_picture} 
+                            alt={selectedItem.Name} 
+                            width={100} 
+                            height={100} 
+                            className="rounded-full object-cover border-4 border-red-100"
+                          />
+                        ) : (
+                          <div className="w-24 h-24 rounded-full bg-red-100 flex items-center justify-center">
+                            <span className="text-red-600 font-bold text-2xl">
+                              {selectedItem.Name && selectedItem.Name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-semibold">Name</p>
+                        <p>{selectedItem.Name}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Blood Group</p>
+                        <p>{selectedItem.BloodGroup}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Email</p>
+                        <p>{selectedItem.Email}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Mobile</p>
+                        <p>{selectedItem.MobileNumber}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Permanent City</p>
+                        <p className="text-gray-700">{selectedItem.PermanentCity || 'Not provided'}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Residential City</p>
+                        <p className="text-gray-700">{selectedItem.ResidentCity || 'Not provided'}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">State</p>
+                        <p>{selectedItem.State}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Whatsapp Number</p>
+                        <p>{selectedItem.WhatsappNumber}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold">Blood Group</p>
-                      <p>{selectedItem.BloodGroup}</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="font-semibold">Camp Name</p>
+                        <p>{selectedItem.CampName}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Camp Start</p>
+                        <p>{new Date(selectedItem.CampStart).toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Camp End</p>
+                        <p>{new Date(selectedItem.CampEnd).toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Location</p>
+                        <p>{selectedItem.CampLocation}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">City</p>
+                        <p>{selectedItem.CampCity}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">State</p>
+                        <p>{selectedItem.CampState}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Country</p>
+                        <p>{selectedItem.CampCountry}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Target Units</p>
+                        <p>{selectedItem.TargetBloodUnits}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Alternative Contact</p>
+                        <p>{selectedItem.AlternativeContact}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Description</p>
+                        <p>{selectedItem.CampDescription}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Status</p>
+                        <p className="capitalize">{selectedItem.CampStatus}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold">City</p>
-                      <p>{selectedItem.City}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Country</p>
-                      <p>{selectedItem.Country}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Gender</p>
-                      <p>{selectedItem.Gender}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Hospital</p>
-                      <p>{selectedItem.Hospital}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Patient Age</p>
-                      <p>{selectedItem.PatientAge}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Patient Name</p>
-                      <p>{selectedItem.PatientName}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Reason</p>
-                      <p>{selectedItem.Reason}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">State</p>
-                      <p>{selectedItem.State}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Units Needed</p>
-                      <p>{selectedItem.UnitsNeeded}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Verified</p>
-                      <p>{selectedItem.Verified}</p>
-                    </div>
-                  </div>
-                ) : modalType === 'donor' ? (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="col-span-2 flex justify-center mb-4">
-                      {selectedItem.profile_picture ? (
-                        <Image 
-                          src={selectedItem.profile_picture} 
-                          alt={selectedItem.Name} 
-                          width={100} 
-                          height={100} 
-                          className="rounded-full object-cover border-4 border-red-100"
-                        />
-                      ) : (
-                        <div className="w-24 h-24 rounded-full bg-red-100 flex items-center justify-center">
-                          <span className="text-red-600 font-bold text-2xl">
-                            {selectedItem.Name && selectedItem.Name.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <p className="font-semibold">Name</p>
-                      <p>{selectedItem.Name}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Blood Group</p>
-                      <p>{selectedItem.BloodGroup}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Email</p>
-                      <p>{selectedItem.Email}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Mobile</p>
-                      <p>{selectedItem.MobileNumber}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Permanent City</p>
-                      <p className="text-gray-700">{selectedItem.PermanentCity || 'Not provided'}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Residential City</p>
-                      <p className="text-gray-700">{selectedItem.ResidentCity || 'Not provided'}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">State</p>
-                      <p>{selectedItem.State}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Whatsapp Number</p>
-                      <p>{selectedItem.WhatsappNumber}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="font-semibold">Camp Name</p>
-                      <p>{selectedItem.CampName}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Camp Start</p>
-                      <p>{new Date(selectedItem.CampStart).toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Camp End</p>
-                      <p>{new Date(selectedItem.CampEnd).toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Location</p>
-                      <p>{selectedItem.CampLocation}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">City</p>
-                      <p>{selectedItem.CampCity}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">State</p>
-                      <p>{selectedItem.CampState}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Country</p>
-                      <p>{selectedItem.CampCountry}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Target Units</p>
-                      <p>{selectedItem.TargetBloodUnits}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Alternative Contact</p>
-                      <p>{selectedItem.AlternativeContact}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Description</p>
-                      <p>{selectedItem.CampDescription}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Status</p>
-                      <p className="capitalize">{selectedItem.CampStatus}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              )}
+            </div>
           </DialogContent>
         </Dialog>
       </div>
