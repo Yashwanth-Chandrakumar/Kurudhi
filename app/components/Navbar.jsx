@@ -2,8 +2,8 @@
 import { useAuth } from "@/context/AuthContext";
 import CryptoJS from "crypto-js";
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { doc, getDoc, getFirestore, collection, query, where, getDocs } from "firebase/firestore";
-import { Menu, X, User } from "lucide-react";
+import { collection, doc, getDoc, getDocs, getFirestore, query, where } from "firebase/firestore";
+import { Menu, User, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -27,6 +27,7 @@ const Navbar = () => {
   const [isDonor, setIsDonor] = useState(true); // Default to true to hide "Become a Donor"
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [profilePicture, setProfilePicture] = useState(null);
   const { user, logout } = useAuth();
   const router = useRouter();
 
@@ -92,6 +93,25 @@ const Navbar = () => {
     checkIfDonor();
   }, [user]);
 
+  // Fetch profile picture
+  useEffect(() => {
+    const fetchProfilePicture = async () => {
+      if (!user?.email) return;
+      try {
+        const q = query(collection(db, "donors"), where("Email", "==", user.email));
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+          const data = snapshot.docs[0].data();
+          setProfilePicture(data.profile_picture);
+        }
+      } catch (error) {
+        console.error('Error fetching profile picture:', error);
+      }
+    };
+
+    fetchProfilePicture();
+  }, [user]);
+
   return (
     <nav className="bg-gradient-to-r from-red-700 to-red-600 shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4">
@@ -126,23 +146,21 @@ const Navbar = () => {
             <Link href="/camp" className="text-white hover:bg-red-500 px-3 py-2 rounded-md text-base font-medium">
               Host a Camp
             </Link>
-            {userRole === "admin" && (
-              <Link href="/admin" className="text-white hover:bg-red-500 px-3 py-2 rounded-md text-base font-medium">
-                View as Admin
-              </Link>
-            )}
-            {userRole === "superadmin" && (
-              <Link href="/superadmin" className="text-white hover:bg-red-500 px-3 py-2 rounded-md text-base font-medium">
-                View as Super Admin
-              </Link>
-            )}
             {user ? (
               <div className="relative">
                 <button
                   onClick={() => setShowProfileDropdown((prev) => !prev)}
-                  className="bg-white text-red-600 hover:bg-red-100 p-2 rounded-md"
+                  className="bg-white text-red-600 hover:bg-red-100 p-2 rounded-md flex items-center justify-center"
                 >
-                  <User className="w-6 h-6" />
+                  {profilePicture ? (
+                    <img
+                      src={profilePicture}
+                      alt="Profile"
+                      className="w-6 h-6 rounded-full object-cover"
+                    />
+                  ) : (
+                    <User className="w-6 h-6" />
+                  )}
                 </button>
                 {showProfileDropdown && (
                   <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow-lg z-50">
@@ -211,23 +229,21 @@ const Navbar = () => {
               <Link href="/camp" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
                 Host a Camp
               </Link>
-              {userRole === "admin" && (
-                <Link href="/admin" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
-                  View as Admin
-                </Link>
-              )}
-              {userRole === "superadmin" && (
-                <Link href="/superadmin" className="text-white hover:bg-red-500 block px-3 py-2 rounded-md text-base font-medium">
-                  View as Super Admin
-                </Link>
-              )}
               {user ? (
                 <div className="relative">
                   <button
                     onClick={() => setShowProfileDropdown((prev) => !prev)}
-                    className="w-full text-center bg-white text-red-600 hover:bg-red-100 p-2 rounded-md"
+                    className="w-full text-center bg-white text-red-600 hover:bg-red-100 p-2 rounded-md flex items-center justify-center"
                   >
-                    <User className="w-6 h-6 inline" />
+                    {profilePicture ? (
+                      <img
+                        src={profilePicture}
+                        alt="Profile"
+                        className="w-6 h-6 rounded-full object-cover inline"
+                      />
+                    ) : (
+                      <User className="w-6 h-6 inline" />
+                    )}
                   </button>
                   {showProfileDropdown && (
                     <div className="absolute right-0 mt-2 w-full bg-white border rounded shadow-lg z-50">

@@ -1,16 +1,17 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { getFirestore, collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useRouter } from 'next/navigation';
-import { UserCircle } from 'lucide-react';
 import Navbar from '@/components/Navbar';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth } from '@/context/AuthContext';
+import { collection, doc, getDocs, getFirestore, query, updateDoc, where } from 'firebase/firestore';
+import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
+import { UserCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 const tamilNaduCities = [
   "Ambur", "Chennai", "Coimbatore", "Cuddalore", "Dindigul", "Erode", "Hosur",
@@ -27,12 +28,15 @@ export default function ProfilePage() {
   const { user } = useAuth();
   const router = useRouter();
   const db = getFirestore();
+  const storage = getStorage();
   const [donorData, setDonorData] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [sameAsPermanent, setSameAsPermanent] = useState(false);
   const [updateStatus, setUpdateStatus] = useState(null);
   const [donorDocId, setDonorDocId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [profilePicture, setProfilePicture] = useState(null);
+  const [profilePictureURL, setProfilePictureURL] = useState(null);
 
   useEffect(() => {
     if (!user) return;
@@ -46,6 +50,7 @@ export default function ProfilePage() {
           setDonorData(data);
           setDonorDocId(snapshot.docs[0].id);
           setSameAsPermanent(data.PermanentCity === data.ResidentCity);
+          setProfilePictureURL(data.profile_picture || null);
         }
       } catch (error) {
         console.error('Error fetching donor data:', error);
@@ -55,6 +60,52 @@ export default function ProfilePage() {
     };
     fetchDonorData();
   }, [user, db]);
+
+  const handleProfilePictureChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result;
+        setProfilePicture(base64String);
+        // Update donor data with new profile picture
+        setDonorData(prev => ({
+          ...prev,
+          profile_picture: base64String
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadProfilePicture = async () => {
+    if (!profilePicture) return null;
+    
+    const storageRef = ref(storage, `profile_pictures/${user.email}/${profilePicture.name}`);
+    await uploadBytes(storageRef, profilePicture);
+    const downloadURL = await getDownloadURL(storageRef);
+    return downloadURL;
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      const donorRef = doc(db, 'donors', donorDocId);
+      await updateDoc(donorRef, donorData);
+      setUpdateStatus({ type: 'success', message: 'Profile updated successfully!' });
+      setIsEditing(false);
+      setTimeout(() => setUpdateStatus(null), 3000);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setUpdateStatus({ type: 'error', message: 'Failed to update profile. Please try again.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const inputClasses = "w-full p-2 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200";
+  const labelClasses = "block text-sm font-medium text-gray-700 mb-1";
 
   if (loading) {
     return (
@@ -94,25 +145,6 @@ export default function ProfilePage() {
     setDonorData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = async () => {
-    setLoading(true);
-    try {
-      const donorRef = doc(db, 'donors', donorDocId);
-      await updateDoc(donorRef, donorData);
-      setUpdateStatus({ type: 'success', message: 'Profile updated successfully!' });
-      setIsEditing(false);
-      setTimeout(() => setUpdateStatus(null), 3000);
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      setUpdateStatus({ type: 'error', message: 'Failed to update profile. Please try again.' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const inputClasses = "w-full p-2 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200";
-  const labelClasses = "block text-sm font-medium text-gray-700 mb-1";
-
   return (
     <>
       <Navbar/>
@@ -135,6 +167,34 @@ export default function ProfilePage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-6 p-6">
+            {/* Profile Picture Section */}
+            <div className="flex flex-col items-center space-y-4 mb-6">
+              <div className="relative">
+                {donorData?.profile_picture ? (
+                  <img
+                    src={donorData.profile_picture}
+                    alt="Profile"
+                    className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
+                  />
+                ) : (
+                  <UserCircle className="w-32 h-32 text-gray-400" />
+                )}
+                {isEditing && (
+                  <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full cursor-pointer hover:bg-blue-700">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleProfilePictureChange}
+                    />
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    </svg>
+                  </label>
+                )}
+              </div>
+            </div>
+            
             {updateStatus && (
               <Alert className={`${updateStatus.type === 'success' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'} mb-6`}>
                 <AlertDescription className={updateStatus.type === 'success' ? 'text-green-800' : 'text-red-800'}>
