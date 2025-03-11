@@ -37,7 +37,7 @@ const db = getFirestore(app);
 function OtpInput({ length = 6, onChange, inputClassName = "w-12 h-12 text-center border border-white rounded-lg bg-white text-red-700 shadow-md" }) {
   const [otp, setOtp] = useState(new Array(length).fill(""));
   const inputRefs = useRef([]);
-  
+
   useEffect(() => {
     onChange(otp.join(""));
   }, [otp, onChange]);
@@ -46,10 +46,10 @@ function OtpInput({ length = 6, onChange, inputClassName = "w-12 h-12 text-cente
     const value = e.target.value;
     if (isNaN(value)) return;
     
-    const newOtp = [...otp];
+      const newOtp = [...otp];
     // Only take the last char if multiple chars are pasted
     newOtp[index] = value.substring(value.length - 1);
-    setOtp(newOtp);
+      setOtp(newOtp);
     
     // Move to next input if current field is filled
     if (value && index < length - 1) {
@@ -210,12 +210,36 @@ export default function DashboardPage() {
 
   // Donor Request Card Component
   function DonorRequestCard({ request, donorRecord }) {
+    const [isExpanded, setIsExpanded] = useState(false);
     const [donation, setDonation] = useState(null);
     const [enteredOtp, setEnteredOtp] = useState('');
-    const [isExpanded, setIsExpanded] = useState(false);
+    const [isCopied, setIsCopied] = useState(false);
+    const shareUrlRef = useRef(null);
     const cardRef = useRef(null);
 
-    // Check donor eligibility based on last donation date.
+    // Add useEffect to fetch existing donation when component loads
+    useEffect(() => {
+      const fetchExistingDonation = async () => {
+        if (!user || !request.id) return;
+        
+        try {
+          const donationsRef = collection(db, "requests", request.id, "donations");
+          const q = query(donationsRef, where("donorId", "==", user.uid));
+          const querySnapshot = await getDocs(q);
+          
+          if (!querySnapshot.empty) {
+            // Found an existing donation by this user for this request
+            const donationDoc = querySnapshot.docs[0];
+            setDonation({ id: donationDoc.id, ...donationDoc.data() });
+          }
+        } catch (error) {
+          console.error("Error fetching existing donation:", error);
+        }
+      };
+      
+      fetchExistingDonation();
+    }, [user, request.id]);
+
     const canDonate = () => {
       if (!donorRecord?.lastDonationDate) return true;
       
@@ -235,7 +259,7 @@ export default function DashboardPage() {
         const donorOtp = generateOTP();
         const requesterOtp = generateOTP();
         
-        // Add donation record
+        // Add donation record to subcollection of requests
         const donationData = {
           requestId: request.id,
           donorId: user.uid,
@@ -248,7 +272,8 @@ export default function DashboardPage() {
           timestamp: new Date(),
         };
         
-        const docRef = await addDoc(collection(db, "donations"), donationData);
+        const donationsRef = collection(db, "requests", request.id, "donations");
+        const docRef = await addDoc(donationsRef, donationData);
         setDonation({ id: docRef.id, ...donationData });
       } catch (error) {
         console.error("Error initiating donation:", error);
@@ -262,8 +287,8 @@ export default function DashboardPage() {
       }
       
       try {
-        // Update donation record
-        await updateDoc(doc(db, "donations", donation.id), {
+        // Update donation record in the subcollection
+        await updateDoc(doc(db, "requests", request.id, "donations", donation.id), {
           donorOtpVerified: true
         });
         
@@ -278,8 +303,8 @@ export default function DashboardPage() {
           
           // Update donor's last donation date
           const donorQuery = query(collection(db, "donors"), where("Email", "==", user.email));
-          const donorSnapshot = await getDocs(donorQuery);
-          if (!donorSnapshot.empty) {
+            const donorSnapshot = await getDocs(donorQuery);
+            if (!donorSnapshot.empty) {
             const donorRef = doc(db, "donors", donorSnapshot.docs[0].id);
             await updateDoc(donorRef, {
               lastDonationDate: new Date().toISOString().split('T')[0]
@@ -370,7 +395,7 @@ export default function DashboardPage() {
                 <h2 className="text-xl font-bold text-gray-800">{request.PatientName}</h2>
                 <span className={`${getBloodGroupColor(request.BloodGroup)} px-2 py-1 rounded-full text-xs font-bold`}>
                   {request.BloodGroup}
-                </span>
+          </span>
               </div>
               <div className="flex items-center mt-1 text-gray-500 text-sm">
                 <Hospital className="w-4 h-4 mr-1" /> {request.Hospital}
@@ -424,6 +449,75 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+          
+          {/* Donation button/UI outside expandable section */}
+        {donation ? (
+          donation.donorOtpVerified ? (
+              <div className="mt-4 p-4 bg-green-50 border border-green-100 rounded-lg">
+                <div className="flex items-center text-green-800 font-bold">
+                  <Check className="w-5 h-5 mr-2" />
+                  Donation completed
+                </div>
+                <p className="text-green-700 text-sm mt-1">Thank you for your donation! Your OTP: <strong>{donation.donorOtp}</strong></p>
+            </div>
+          ) : (
+              <div className="mt-4 p-4 bg-yellow-50 border border-yellow-100 rounded-lg">
+                <div className="flex items-center text-yellow-800 font-medium mb-3">
+                  <AlertCircle className="w-5 h-5 mr-2" />
+                  Verify the requester's OTP to complete donation
+                </div>
+                
+                {/* Attender Information */}
+                <div className="mb-4 p-3 bg-white rounded-lg border border-yellow-200">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Attender Information</h4>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <p className="text-gray-500">Name:</p>
+                      <p className="font-medium">{request.AttenderName || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Contact:</p>
+                      <p className="font-medium">{request.AttenderMobile || 'Not provided'}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <p className="text-yellow-700 mb-3">Your OTP: <strong>{donation.donorOtp}</strong></p>
+                <OtpInput 
+                  onChange={setEnteredOtp}
+                  inputClassName="w-10 h-10 text-center border border-yellow-200 rounded-lg bg-white text-gray-700 shadow-sm focus:border-yellow-500 focus:ring focus:ring-yellow-200 focus:ring-opacity-50"
+                />
+              <Button
+                onClick={handleVerifyRequesterOtp}
+                  className="mt-4 w-full bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg font-medium transition-colors"
+              >
+                  Verify OTP
+              </Button>
+            </div>
+          )
+        ) : (
+          donorRecord && donorRecord.BloodGroup === request.BloodGroup ? (
+            <Button 
+              onClick={handleDonateClick} 
+                disabled={!canDonate() || request.Verified === 'completed'}
+                className={`mt-4 w-full py-2 rounded-lg font-medium transition-all ${
+                  canDonate() && request.Verified !== 'completed'
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                {request.Verified === 'completed' 
+                  ? 'Donation Complete' 
+                  : !canDonate() 
+                    ? 'Cannot Donate (Wait 30 Days)' 
+                    : 'Donate Blood'}
+            </Button>
+          ) : (
+              <div className="mt-4 p-3 bg-gray-50 border border-gray-100 rounded-lg text-center text-sm text-gray-500">
+                Blood group mismatch. You cannot donate for this request.
+              </div>
+            )
+          )}
 
           <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[500px] opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
             <div className="pt-4 border-t border-gray-100">
@@ -442,62 +536,9 @@ export default function DashboardPage() {
                   <div className="text-sm text-gray-600 space-y-1">
                     <p><span className="text-gray-500">Hospital:</span> {request.Hospital}</p>
                     <p><span className="text-gray-500">City:</span> {request.City}</p>
-                    <p><span className="text-gray-500">Contact:</span> {request.PhoneNumber || 'Not provided'}</p>
                   </div>
                 </div>
               </div>
-
-              {donation ? (
-                donation.donorOtpVerified ? (
-                  <div className="mt-4 p-4 bg-green-50 border border-green-100 rounded-lg">
-                    <div className="flex items-center text-green-800 font-bold">
-                      <Check className="w-5 h-5 mr-2" />
-                      Donation completed
-                    </div>
-                    <p className="text-green-700 text-sm mt-1">Thank you for your donation! Your OTP: <strong>{donation.donorOtp}</strong></p>
-                  </div>
-                ) : (
-                  <div className="mt-4 p-4 bg-yellow-50 border border-yellow-100 rounded-lg">
-                    <div className="flex items-center text-yellow-800 font-medium mb-3">
-                      <AlertCircle className="w-5 h-5 mr-2" />
-                      Verify the requester's OTP to complete donation
-                    </div>
-                    <p className="text-yellow-700 mb-3">Your OTP: <strong>{donation.donorOtp}</strong></p>
-                    <OtpInput 
-                      onChange={setEnteredOtp}
-                      inputClassName="w-10 h-10 text-center border border-yellow-200 rounded-lg bg-white text-gray-700 shadow-sm focus:border-yellow-500 focus:ring focus:ring-yellow-200 focus:ring-opacity-50"
-                    />
-                    <Button
-                      onClick={handleVerifyRequesterOtp}
-                      className="mt-4 w-full bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg font-medium transition-colors"
-                    >
-                      Verify OTP
-                    </Button>
-                  </div>
-                )
-              ) : (
-                donorRecord && donorRecord.BloodGroup === request.BloodGroup ? (
-                  <Button 
-                    onClick={handleDonateClick} 
-                    disabled={!canDonate() || request.Verified === 'completed'}
-                    className={`mt-4 w-full py-2 rounded-lg font-medium transition-all ${
-                      canDonate() && request.Verified !== 'completed'
-                        ? 'bg-red-600 hover:bg-red-700 text-white'
-                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    }`}
-                  >
-                    {request.Verified === 'completed' 
-                      ? 'Donation Complete' 
-                      : !canDonate() 
-                        ? 'Cannot Donate (Wait 30 Days)' 
-                        : 'Donate Blood'}
-                  </Button>
-                ) : (
-                  <div className="mt-4 p-3 bg-gray-50 border border-gray-100 rounded-lg text-center text-sm text-gray-500">
-                    Blood group mismatch. You cannot donate for this request.
-                  </div>
-                )
-              )}
             </div>
           </div>
         </div>
@@ -644,7 +685,7 @@ export default function DashboardPage() {
                     <DonorRequestCard request={request} donorRecord={donorRecord} />
                   </div>
                 ))}
-              </div>
+        </div>
             ) : (
               <div className="text-center py-8 animate-fade-in-up">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
@@ -662,7 +703,7 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
-      </div>
+    </div>
     </>
   );
 }
