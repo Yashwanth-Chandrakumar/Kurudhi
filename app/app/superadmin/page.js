@@ -1,25 +1,25 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { initializeApp, getApps, getApp } from 'firebase/app'
-import {
-  getFirestore,
-  collection,
-  onSnapshot,
-  updateDoc,
-  doc,
-  getDocs,
-  query,
-  where
-} from 'firebase/firestore'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
+import Navbar from '@/components/Navbar'
 import { Button } from '@/components/ui/button'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle
+} from '@/components/ui/dialog'
+import { useAuth } from '@/context/AuthContext'
+import { getApp, getApps, initializeApp } from 'firebase/app'
+import {
+    collection,
+    doc,
+    getDoc,
+    getFirestore,
+    onSnapshot,
+    updateDoc
+} from 'firebase/firestore'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 // Firebase configuration
 const firebaseConfig = {
@@ -37,7 +37,10 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp()
 const db = getFirestore(app)
 
 export default function SuperAdminDashboard() {
+  const { user } = useAuth()
   const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [userRole, setUserRole] = useState(null)
 
   // Collections data
   const [requests, setRequests] = useState([])
@@ -93,8 +96,48 @@ export default function SuperAdminDashboard() {
   // Mobile sidebar state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
-  // Listen for blood requests
+  // Check user authorization
   useEffect(() => {
+    const checkUserRole = async () => {
+      if (!user) {
+        router.push('/')
+        return
+      }
+
+      try {
+        const userRef = doc(db, 'users', user.uid)
+        const docSnap = await getDoc(userRef)
+        
+        if (docSnap.exists()) {
+          const userData = docSnap.data()
+          setUserRole(userData.role)
+          
+          // Only allow superadmin role
+          if (userData.role !== 'superadmin') {
+            router.push('/')
+          }
+        } else {
+          // No user document found, redirect
+          router.push('/')
+        }
+      } catch (error) {
+        console.error('Error checking user role:', error)
+        router.push('/')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    checkUserRole()
+  }, [user, router])
+
+  // Only fetch data if user is authorized
+  useEffect(() => {
+    if (!user || userRole !== 'superadmin') {
+      return
+    }
+    
+    // Listen for blood requests
     const unsubscribe = onSnapshot(collection(db, 'requests'), (snapshot) => {
       const requestsList = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -110,12 +153,9 @@ export default function SuperAdminDashboard() {
         rejectedRequests: requestsList.filter(req => req.Verified === "rejected").length
       }))
     })
-    return () => unsubscribe()
-  }, [])
 
-  // Listen for donors
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'donors'), (snapshot) => {
+    // Listen for donors
+    const donorsUnsubscribe = onSnapshot(collection(db, 'donors'), (snapshot) => {
       const donorsList = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -126,12 +166,9 @@ export default function SuperAdminDashboard() {
         totalDonors: donorsList.length
       }))
     })
-    return () => unsubscribe()
-  }, [])
 
-  // Listen for camps
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'camps'), (snapshot) => {
+    // Listen for camps
+    const campsUnsubscribe = onSnapshot(collection(db, 'camps'), (snapshot) => {
       const now = new Date()
       const campsList = snapshot.docs.map(doc => {
         const data = doc.data()
@@ -155,20 +192,23 @@ export default function SuperAdminDashboard() {
         completedCamps: campsList.filter(camp => camp.CampStatus === "completed").length
       }))
     })
-    return () => unsubscribe()
-  }, [])
 
-  // Listen for all users (for Manage Admins)
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
+    // Listen for all users (for Manage Admins)
+    const usersUnsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
       const usersList = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }))
       setAllUsers(usersList)
     })
-    return () => unsubscribe()
-  }, [])
+
+    return () => {
+      unsubscribe()
+      donorsUnsubscribe()
+      campsUnsubscribe()
+      usersUnsubscribe()
+    }
+  }, [user, userRole])
 
   // Function to update a request's status (with confirmation)
   const updateRequestStatus = async (id, status) => {
@@ -259,6 +299,37 @@ export default function SuperAdminDashboard() {
   const filteredUsers = allUsers.filter(u =>
     u.email.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  // If loading, show a loading indicator
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-red-600"></div>
+        </div>
+      </>
+    )
+  }
+
+  // If not authorized, show error message
+  if (!userRole || userRole !== 'superadmin') {
+    return (
+      <>
+        <Navbar />
+        <div className="min-h-screen flex flex-col items-center justify-center p-4">
+          <h1 className="text-3xl font-bold text-red-600 mb-4">Access Denied</h1>
+          <p className="text-lg text-gray-700 mb-8">You don't have permission to access this page.</p>
+          <button 
+            onClick={() => router.push('/')}
+            className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Return to Home
+          </button>
+        </div>
+      </>
+    )
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">

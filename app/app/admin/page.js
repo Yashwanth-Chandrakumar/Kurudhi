@@ -1,26 +1,26 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { initializeApp, getApps, getApp } from 'firebase/app'
-import {
-  getFirestore,
-  collection,
-  query,
-  where,
-  onSnapshot,
-  updateDoc,
-  doc,
-  getDoc,
-  getDocs
-} from 'firebase/firestore'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
+import Navbar from '@/components/Navbar'
 import { Button } from '@/components/ui/button'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle
+} from '@/components/ui/dialog'
+import { useAuth } from '@/context/AuthContext'
+import { getApp, getApps, initializeApp } from 'firebase/app'
+import {
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    getFirestore,
+    onSnapshot,
+    updateDoc
+} from 'firebase/firestore'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 // Firebase configuration
 const firebaseConfig = {
@@ -38,14 +38,13 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp()
 const db = getFirestore(app)
 
 export default function AdminDashboard() {
+  const { user } = useAuth()
   const router = useRouter()
-
-  // Collections
+  const [loading, setLoading] = useState(true)
+  const [userRole, setUserRole] = useState(null)
   const [requests, setRequests] = useState([])
   const [donors, setDonors] = useState([])
   const [camps, setCamps] = useState([])
-
-  // Stats for cards
   const [stats, setStats] = useState({
     totalRequests: 0,
     currentRequests: 0,
@@ -57,18 +56,11 @@ export default function AdminDashboard() {
     ongoingCamps: 0,
     completedCamps: 0
   })
-
-  // Main tab state (sidebar)
-  const [activeTab, setActiveTab] = useState('requests') // 'requests', 'camps', 'donors'
-  // Sub-tab states (displayed inside main content)
-  const [activeRequestFilter, setActiveRequestFilter] = useState('received') // Options: received, accepted, completed, rejected, all
-  const [activeCampFilter, setActiveCampFilter] = useState('all') // Options: all, upcoming, ongoing, completed
-
-  // Pagination
+  const [activeTab, setActiveTab] = useState('requests')
+  const [activeRequestFilter, setActiveRequestFilter] = useState('received')
+  const [activeCampFilter, setActiveCampFilter] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
-
-  // Modal states for details and confirmations
   const [selectedItem, setSelectedItem] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalType, setModalType] = useState(null)
@@ -78,45 +70,72 @@ export default function AdminDashboard() {
     requestId: null,
     message: ''
   })
-
-  // Mobile sidebar state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
-  // Fetch blood requests in real time
+  // Check user authorization
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'requests'), (snapshot) => {
-      const requestsList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
-      setRequests(requestsList)
-      setStats(prev => ({
-        ...prev,
-        totalRequests: requestsList.length,
-        currentRequests: requestsList.filter(req => req.Verified === "received").length,
-        ongoingRequests: requestsList.filter(req => req.Verified === "accepted").length,
-        completedRequests: requestsList.filter(req => req.Verified === "completed").length,
-        rejectedRequests: requestsList.filter(req => req.Verified === "rejected").length
-      }))
-    })
-    return () => unsubscribe()
-  }, [])
+    const checkUserRole = async () => {
+      if (!user) {
+        router.push('/')
+        return
+      }
 
-  // Fetch donors in real time
+      try {
+        const userRef = doc(db, 'users', user.uid)
+        const docSnap = await getDoc(userRef)
+        
+        if (docSnap.exists()) {
+          const userData = docSnap.data()
+          setUserRole(userData.role)
+          
+          // If not admin or superadmin, redirect to home
+          if (userData.role !== 'admin' && userData.role !== 'superadmin') {
+            router.push('/')
+          }
+        } else {
+          // No user document found, redirect
+          router.push('/')
+        }
+      } catch (error) {
+        console.error('Error checking user role:', error)
+        router.push('/')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    checkUserRole()
+  }, [user, router])
+
+  // Fetch data only if user is authorized
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'donors'), (snapshot) => {
-      const donorsList = snapshot.docs.map(doc => ({
+    if (!user || (userRole !== 'admin' && userRole !== 'superadmin')) {
+      return
+    }
+
+    const fetchDonors = async () => {
+      const donorsCollection = collection(db, 'donors')
+      const donorSnapshot = await getDocs(donorsCollection)
+      const donorList = donorSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }))
-      setDonors(donorsList)
-      setStats(prev => ({
-        ...prev,
-        totalDonors: donorsList.length
+      setDonors(donorList)
+    }
+
+    const fetchRequests = async () => {
+      const requestsCollection = collection(db, 'requests')
+      const requestSnapshot = await getDocs(requestsCollection)
+      const requestList = requestSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
       }))
-    })
-    return () => unsubscribe()
-  }, [])
+      setRequests(requestList)
+    }
+
+    fetchDonors()
+    fetchRequests()
+  }, [user, userRole])
 
   // Fetch camps in real time  
   useEffect(() => {
@@ -210,6 +229,37 @@ export default function AdminDashboard() {
   const indexOfLastItem = currentPage * itemsPerPage
   const indexOfFirstItem = indexOfLastItem - itemsPerPage
   const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem)
+
+  // If loading, show a loading indicator
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-red-600"></div>
+        </div>
+      </>
+    )
+  }
+
+  // If not authorized, show error message
+  if (!userRole || (userRole !== 'admin' && userRole !== 'superadmin')) {
+    return (
+      <>
+        <Navbar />
+        <div className="min-h-screen flex flex-col items-center justify-center p-4">
+          <h1 className="text-3xl font-bold text-red-600 mb-4">Access Denied</h1>
+          <p className="text-lg text-gray-700 mb-8">You don't have permission to access this page.</p>
+          <button 
+            onClick={() => router.push('/')}
+            className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Return to Home
+          </button>
+        </div>
+      </>
+    )
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
