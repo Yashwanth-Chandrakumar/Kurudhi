@@ -80,6 +80,9 @@ export default function AdminDashboard() {
   const [actionType, setActionType] = useState('')
   const [showEmergencyDialog, setShowEmergencyDialog] = useState(false)
   const [emergencyLevel, setEmergencyLevel] = useState('')
+  const [isDonorsModalOpen, setIsDonorsModalOpen] = useState(false)
+  const [selectedRequestDonors, setSelectedRequestDonors] = useState([])
+  const [loadingDonors, setLoadingDonors] = useState(false)
 
   // Define fetchRequests BEFORE any useEffect calls
   const fetchRequests = async () => {
@@ -333,6 +336,58 @@ export default function AdminDashboard() {
     }
   };
 
+  // Add a function to open the donors modal
+  const openDonorsModal = async (requestId) => {
+    setLoadingDonors(true)
+    try {
+      // Fetch all donations for this request
+      const donationsRef = collection(db, "requests", requestId, "donations")
+      const donationsSnapshot = await getDocs(donationsRef)
+      
+      if (donationsSnapshot.empty) {
+        setSelectedRequestDonors([])
+        setIsDonorsModalOpen(true)
+        return
+      }
+      
+      // Get donation data and fetch donor details for each donation
+      const donationsData = []
+      for (const doc of donationsSnapshot.docs) {
+        const donation = { id: doc.id, ...doc.data() }
+        
+        // Get donor details if available
+        if (donation.donorEmail) {
+          const donorQuery = query(collection(db, "donors"), where("Email", "==", donation.donorEmail))
+          const donorSnapshot = await getDocs(donorQuery)
+          if (!donorSnapshot.empty) {
+            donation.donorDetails = donorSnapshot.docs[0].data()
+          }
+        } else if (donation.donorId) {
+          // Try to get donor email from users collection
+          const userDoc = await getDoc(doc(db, "users", donation.donorId))
+          if (userDoc.exists() && userDoc.data().email) {
+            const donorEmail = userDoc.data().email
+            const donorQuery = query(collection(db, "donors"), where("Email", "==", donorEmail))
+            const donorSnapshot = await getDocs(donorQuery)
+            if (!donorSnapshot.empty) {
+              donation.donorDetails = donorSnapshot.docs[0].data()
+            }
+          }
+        }
+        
+        donationsData.push(donation)
+      }
+      
+      setSelectedRequestDonors(donationsData)
+      setIsDonorsModalOpen(true)
+    } catch (error) {
+      console.error("Error fetching donations:", error)
+      toast.error("Failed to load donor information")
+    } finally {
+      setLoadingDonors(false)
+    }
+  }
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar for desktop */}
@@ -495,6 +550,14 @@ export default function AdminDashboard() {
                         <Button onClick={() => openDetailsModal(request, 'request')} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition">
                           More
                         </Button>
+                        {(parseInt(request.UnitsDonated) > 0 || request.UnitsDonated > 0) && (
+                          <Button 
+                            onClick={() => openDonorsModal(request.id)} 
+                            className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded transition"
+                          >
+                            View Donors
+                          </Button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -772,9 +835,19 @@ export default function AdminDashboard() {
                         <p>{selectedItem.UnitsNeeded}</p>
                       </div>
                       <div>
+                        <p className="font-semibold">Units Donated</p>
+                        <p>{selectedItem.UnitsDonated || 0}</p>
+                      </div>
+                      <div>
                         <p className="font-semibold">Verified</p>
                         <p>{selectedItem.Verified}</p>
                       </div>
+                      {selectedItem.EmergencyLevel && (
+                        <div>
+                          <p className="font-semibold">Emergency Level</p>
+                          <p className="capitalize">{selectedItem.EmergencyLevel}</p>
+                        </div>
+                      )}
                     </div>
                   ) : modalType === 'donor' ? (
                     <div className="grid grid-cols-2 gap-4">
@@ -879,6 +952,105 @@ export default function AdminDashboard() {
                 </div>
               )}
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add new Donors Modal */}
+        <Dialog open={isDonorsModalOpen} onOpenChange={setIsDonorsModalOpen}>
+          <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold">Donor Information</DialogTitle>
+            </DialogHeader>
+            {loadingDonors ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+              </div>
+            ) : selectedRequestDonors.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No donations found for this request.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                  <p className="text-blue-800 text-sm">
+                    <span className="font-medium">Note:</span> Showing {selectedRequestDonors.length} donation record(s).
+                  </p>
+                </div>
+                
+                {selectedRequestDonors.map((donation, index) => (
+                  <div key={donation.id} className="border rounded-lg overflow-hidden">
+                    <div className={`p-4 ${donation.donorOtpVerified ? 'bg-green-50' : 'bg-yellow-50'}`}>
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-bold text-lg">
+                          Donor #{index + 1}: {donation.donorDetails?.Name || donation.donorName || 'Unknown'}
+                        </h3>
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          donation.donorOtpVerified 
+                            ? 'bg-green-100 text-green-800 border border-green-200' 
+                            : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                        }`}>
+                          {donation.donorOtpVerified ? 'Donation Complete' : 'Donation Pending'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="p-4 bg-white">
+                      <div className="grid grid-cols-2 gap-3">
+                        {donation.donorDetails && (
+                          <>
+                            <div>
+                              <p className="text-sm text-gray-500">Blood Group</p>
+                              <p className="font-medium">{donation.donorDetails.BloodGroup}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-500">Age</p>
+                              <p className="font-medium">{donation.donorDetails.Age}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-500">Gender</p>
+                              <p className="font-medium capitalize">{donation.donorDetails.Gender}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-500">City</p>
+                              <p className="font-medium">{donation.donorDetails.ResidentCity}</p>
+                            </div>
+                          </>
+                        )}
+                        <div>
+                          <p className="text-sm text-gray-500">Email</p>
+                          <p className="font-medium">{donation.donorEmail || 'Not available'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Phone</p>
+                          <p className="font-medium">{donation.donorDetails?.MobileNumber || 'Not available'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Donation Date</p>
+                          <p className="font-medium">
+                            {donation.timestamp ? new Date(donation.timestamp.toDate ? donation.timestamp.toDate() : donation.timestamp).toLocaleString() : 'Not recorded'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">OTP Status</p>
+                          <div className="flex space-x-2">
+                            <span className={`px-2 py-0.5 rounded-full text-xs ${
+                              donation.requesterOtpVerified ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              Requester: {donation.requesterOtpVerified ? 'Verified' : 'Pending'}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded-full text-xs ${
+                              donation.donorOtpVerified ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              Donor: {donation.donorOtpVerified ? 'Verified' : 'Pending'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>
