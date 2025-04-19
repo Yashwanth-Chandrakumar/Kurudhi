@@ -90,6 +90,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('active');
   const [expandedCard, setExpandedCard] = useState(null);
+  const [userDonations, setUserDonations] = useState([]);
   const [stats, setStats] = useState({
     totalRequests: 0,
     pendingRequests: 0,
@@ -115,6 +116,39 @@ export default function DashboardPage() {
 
     fetchDonorRecord();
   }, [user]);
+
+  // Get user's donations
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const fetchUserDonations = async () => {
+      try {
+        // Get all requests
+        const requestsQuery = query(collection(db, "requests"));
+        const requestsSnapshot = await getDocs(requestsQuery);
+        
+        let userDonationsList = [];
+        
+        // For each request, check if user has a donation
+        for (const doc of requestsSnapshot.docs) {
+          const requestId = doc.id;
+          const donationsRef = collection(db, "requests", requestId, "donations");
+          const userDonationsQuery = query(donationsRef, where("donorId", "==", user.uid));
+          const userDonationsSnapshot = await getDocs(userDonationsQuery);
+          
+          if (!userDonationsSnapshot.empty) {
+            userDonationsList.push(requestId);
+          }
+        }
+        
+        setUserDonations(userDonationsList);
+      } catch (error) {
+        console.error("Error fetching user donations:", error);
+      }
+    };
+
+    fetchUserDonations();
+  }, [user, db]);
 
   // Get blood requests
   useEffect(() => {
@@ -201,7 +235,8 @@ export default function DashboardPage() {
     if (activeTab === 'active') {
       return request.Verified === 'accepted';
     } else if (activeTab === 'completed') {
-      return request.Verified === 'completed';
+      // Only show completed requests that the user has participated in
+      return request.Verified === 'completed' && userDonations.includes(request.id);
     } else if (activeTab === 'mytype' && donorRecord) {
       return request.BloodGroup === donorRecord.BloodGroup && request.Verified === 'accepted';
     }

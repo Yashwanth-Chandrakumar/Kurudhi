@@ -121,6 +121,7 @@ export default function BecomeDonor() {
   const router = useRouter();
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     age: '',
@@ -302,8 +303,10 @@ export default function BecomeDonor() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateStep(currentStep)) return;
+    if (!validateStep(currentStep) || submitting) return;
+    
     try {
+      setSubmitting(true);
       setSubmitStatus({ type: 'info', message: 'Submitting your registration...' });
       const donorData = {
         Age: parseInt(formData.age),
@@ -333,6 +336,7 @@ export default function BecomeDonor() {
         type: 'error',
         message: 'Failed to submit registration. Please try again later.'
       });
+      setSubmitting(false);
     }
   };
 
@@ -598,7 +602,7 @@ export default function BecomeDonor() {
                   ) : (
                     <Button 
                       type="submit"
-                      disabled={!isStepValid() || submitStatus.type === 'info'}
+                      disabled={!isStepValid() || submitting || submitStatus.type === 'info'}
                       className="ml-auto bg-red-600 hover:bg-red-700 text-white disabled:bg-red-300"
                     >
                       Submit
