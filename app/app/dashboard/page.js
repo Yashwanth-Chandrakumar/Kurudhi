@@ -217,6 +217,7 @@ export default function DashboardPage() {
         const unitsDonated = parseInt(requestData.UnitsDonated || 0);
         
         if (unitsDonated >= unitsNeeded) {
+          console.log("Request " + requestId + " marked as completed: " + unitsDonated + "/" + unitsNeeded + " units donated");
           await updateDoc(requestRef, {
             Verified: "completed"
           });
@@ -332,8 +333,10 @@ export default function DashboardPage() {
         const requestDoc = await getDoc(requestRef);
         if (requestDoc.exists()) {
           const currentDonated = parseInt(requestDoc.data().UnitsDonated || 0);
+          const newUnitsDonated = currentDonated + 1;
+          
           await updateDoc(requestRef, {
-            UnitsDonated: currentDonated + 1
+            UnitsDonated: newUnitsDonated
           });
           
           // Update donor's last donation date
@@ -346,7 +349,7 @@ export default function DashboardPage() {
             });
           }
           
-          // Check if donation is complete
+          // Check if donation is complete - ensures this is called after updating UnitsDonated
           await checkDonationCompletion(request.id);
         }
         
