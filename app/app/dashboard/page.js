@@ -115,7 +115,7 @@ export default function DashboardPage() {
     };
 
     fetchDonorRecord();
-  }, [user]);
+  }, [user, userDonations]);
 
   // Get user's donations
   useEffect(() => {
@@ -253,6 +253,20 @@ export default function DashboardPage() {
     const shareUrlRef = useRef(null);
     const cardRef = useRef(null);
 
+    // Add useEffect to refresh donation status when donorRecord changes
+    useEffect(() => {
+      const refreshDonationStatus = () => {
+        // If user has recently donated elsewhere, and has a pending donation here
+        if (donation && !donation.donorOtpVerified && !canDonate()) {
+          // Update the UI immediately (we don't update the database as the donation record remains valid,
+          // but the UI will show it can't be completed now)
+          console.log("Donation in progress but user cannot donate now due to recent donation elsewhere");
+        }
+      };
+      
+      refreshDonationStatus();
+    }, [donorRecord, donation]);
+
     // Add useEffect to fetch existing donation when component loads
     useEffect(() => {
       const fetchExistingDonation = async () => {
@@ -319,6 +333,11 @@ export default function DashboardPage() {
     const handleVerifyRequesterOtp = async () => {
       if (!donation || enteredOtp !== donation.requesterOtp) {
         alert("Invalid OTP. Please try again.");
+        return;
+      }
+      
+      if (!canDonate()) {
+        alert("You cannot donate at this time. You must wait 30 days since your last donation.");
         return;
       }
       
@@ -513,7 +532,11 @@ export default function DashboardPage() {
               <div className="mt-4 p-4 bg-yellow-50 border border-yellow-100 rounded-lg">
                 <div className="flex items-center text-yellow-800 font-medium mb-3">
                   <AlertCircle className="w-5 h-5 mr-2" />
-                  Verify the requester's OTP to complete donation
+                  {!canDonate() ? (
+                    <span>You cannot donate now. Wait 30 days since your last donation.</span>
+                  ) : (
+                    <span>Verify the requester's OTP to complete donation</span>
+                  )}
                 </div>
                 
                 {/* Attender Information */}
@@ -532,16 +555,21 @@ export default function DashboardPage() {
                 </div>
                 
                 <p className="text-yellow-700 mb-3">Your OTP: <strong>{donation.donorOtp}</strong></p>
-                <OtpInput 
-                  onChange={setEnteredOtp}
-                  inputClassName="w-10 h-10 text-center border border-yellow-200 rounded-lg bg-white text-gray-700 shadow-sm focus:border-yellow-500 focus:ring focus:ring-yellow-200 focus:ring-opacity-50"
-                />
-              <Button
-                onClick={handleVerifyRequesterOtp}
-                  className="mt-4 w-full bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg font-medium transition-colors"
-              >
-                  Verify OTP
-              </Button>
+                
+                {canDonate() && (
+                  <>
+                    <OtpInput 
+                      onChange={setEnteredOtp}
+                      inputClassName="w-10 h-10 text-center border border-yellow-200 rounded-lg bg-white text-gray-700 shadow-sm focus:border-yellow-500 focus:ring focus:ring-yellow-200 focus:ring-opacity-50"
+                    />
+                    <Button
+                      onClick={handleVerifyRequesterOtp}
+                      className="mt-4 w-full bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg font-medium transition-colors"
+                    >
+                      Verify OTP
+                    </Button>
+                  </>
+                )}
             </div>
           )
         ) : (

@@ -67,7 +67,7 @@ export default function AdminDashboard() {
   const itemsPerPage = 10
   const [selectedItem, setSelectedItem] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [modalType, setModalType] = useState(null)
+  const [modalType, setModalType] = useState('request')
   const [confirmModal, setConfirmModal] = useState({
     open: false,
     action: '',
@@ -83,29 +83,49 @@ export default function AdminDashboard() {
   const [isDonorsModalOpen, setIsDonorsModalOpen] = useState(false)
   const [selectedRequestDonors, setSelectedRequestDonors] = useState([])
   const [loadingDonors, setLoadingDonors] = useState(false)
+  const [requestsWithDonations, setRequestsWithDonations] = useState([])
+  const [buttonLoadingId, setButtonLoadingId] = useState(null)
 
   // Define fetchRequests BEFORE any useEffect calls
   const fetchRequests = async () => {
-    // Only fetch if user has proper permissions
-    if (!userRole || (userRole !== 'admin' && userRole !== 'superadmin')) {
-      return;
+    try {
+      const requestsRef = collection(db, 'requests');
+      let requestQuery;
+      
+      if (userRole === 'admin' && assignedCity) {
+        requestQuery = query(requestsRef, where('City', '==', assignedCity));
+      } else {
+        requestQuery = query(requestsRef);
+      }
+      
+      const requestsSnapshot = await getDocs(requestQuery);
+      const requestsData = [];
+      const requestsWithInitiatedDonations = [];
+      
+      // Process each request to check for donations
+      for (const requestDoc of requestsSnapshot.docs) {
+        const requestData = { id: requestDoc.id, ...requestDoc.data() };
+        
+        // Check for donations
+        const donationsRef = collection(db, "requests", requestDoc.id, "donations");
+        const donationsSnapshot = await getDocs(donationsRef);
+        
+        // If donations exist, add to our tracking array
+        if (!donationsSnapshot.empty) {
+          requestsWithInitiatedDonations.push(requestDoc.id);
+          // You could also add a hasDonations field to the request data if needed
+          requestData.hasDonations = true;
+        }
+        
+        requestsData.push(requestData);
+      }
+      
+      setRequests(requestsData);
+      setRequestsWithDonations(requestsWithInitiatedDonations);
+    } catch (error) {
+      console.error("Error fetching requests: ", error);
     }
-    
-    const requestsCollection = collection(db, 'requests')
-    let requestQuery = requestsCollection;
-    
-    // Filter by assigned city for admin users
-    if (userRole === 'admin' && assignedCity) {
-      requestQuery = query(requestsCollection, where("City", "==", assignedCity));
-    }
-    
-    const requestSnapshot = await getDocs(requestQuery)
-    const requestList = requestSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }))
-    setRequests(requestList)
-  }
+  };
 
   // Check user authorization
   useEffect(() => {
@@ -352,8 +372,8 @@ export default function AdminDashboard() {
       
       // Get donation data and fetch donor details for each donation
       const donationsData = []
-      for (const doc of donationsSnapshot.docs) {
-        const donation = { id: doc.id, ...doc.data() }
+      for (const donationDoc of donationsSnapshot.docs) {
+        const donation = { id: donationDoc.id, ...donationDoc.data() }
         
         // Get donor details if available
         if (donation.donorEmail) {
@@ -385,6 +405,7 @@ export default function AdminDashboard() {
       toast.error("Failed to load donor information")
     } finally {
       setLoadingDonors(false)
+      setButtonLoadingId(null)
     }
   }
 
@@ -550,14 +571,24 @@ export default function AdminDashboard() {
                         <Button onClick={() => openDetailsModal(request, 'request')} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition">
                           More
                         </Button>
-                        {(parseInt(request.UnitsDonated) > 0 || request.UnitsDonated > 0) && (
-                          <Button 
-                            onClick={() => openDonorsModal(request.id)} 
-                            className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded transition"
-                          >
-                            View Donors
-                          </Button>
-                        )}
+                        <Button 
+                          onClick={() => {
+                            if (buttonLoadingId === request.id) return;
+                            setButtonLoadingId(request.id);
+                            openDonorsModal(request.id);
+                          }}
+                          className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded transition"
+                          disabled={buttonLoadingId === request.id}
+                        >
+                          {buttonLoadingId === request.id ? (
+                            <div className="flex items-center">
+                              <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                              Loading
+                            </div>
+                          ) : (
+                            "View Donors"
+                          )}
+                        </Button>
                       </td>
                     </tr>
                   ))}

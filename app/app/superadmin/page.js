@@ -146,6 +146,8 @@ export default function SuperAdminDashboard() {
   const [isDonorsModalOpen, setIsDonorsModalOpen] = useState(false)
   const [selectedRequestDonors, setSelectedRequestDonors] = useState([])
   const [loadingDonors, setLoadingDonors] = useState(false)
+  const [requestsWithDonations, setRequestsWithDonations] = useState([]) // New state for tracking requests with donations
+  const [buttonLoadingId, setButtonLoadingId] = useState(null) // Track which button is loading
 
   // Check user authorization
   useEffect(() => {
@@ -188,22 +190,51 @@ export default function SuperAdminDashboard() {
       return
     }
     
-    // Listen for blood requests
-    const unsubscribe = onSnapshot(collection(db, 'requests'), (snapshot) => {
-      const requestsList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
-      setRequests(requestsList)
-      setStats(prev => ({
-        ...prev,
-        totalRequests: requestsList.length,
-        currentRequests: requestsList.filter(req => req.Verified === "received").length,
-        ongoingRequests: requestsList.filter(req => req.Verified === "accepted").length,
-        completedRequests: requestsList.filter(req => req.Verified === "completed").length,
-        rejectedRequests: requestsList.filter(req => req.Verified === "rejected").length
-      }))
-    })
+    // Function to fetch requests with donation info
+    const fetchRequests = async () => {
+      try {
+        const requestsRef = collection(db, 'requests')
+        const requestsSnapshot = await getDocs(requestsRef)
+        
+        const requestsData = []
+        const requestsWithInitiatedDonations = []
+        
+        // Process each request to check for donations
+        for (const requestDoc of requestsSnapshot.docs) {
+          const requestData = { id: requestDoc.id, ...requestDoc.data() }
+          
+          // Check for donations subcollection
+          const donationsRef = collection(db, "requests", requestDoc.id, "donations")
+          const donationsSnapshot = await getDocs(donationsRef)
+          
+          // If donations exist, add to our tracking array
+          if (!donationsSnapshot.empty) {
+            requestsWithInitiatedDonations.push(requestDoc.id)
+            // Add a flag to easily check if this request has donations
+            requestData.hasDonations = true
+          }
+          
+          requestsData.push(requestData)
+        }
+        
+        setRequests(requestsData)
+        setRequestsWithDonations(requestsWithInitiatedDonations)
+        
+        // Update stats
+        setStats(prev => ({
+          ...prev,
+          totalRequests: requestsData.length,
+          currentRequests: requestsData.filter(r => r.Verified === 'received').length,
+          ongoingRequests: requestsData.filter(r => r.Verified === 'accepted').length,
+          completedRequests: requestsData.filter(r => r.Verified === 'completed').length,
+          rejectedRequests: requestsData.filter(r => r.Verified === 'rejected').length
+        }))
+      } catch (error) {
+        console.error("Error fetching requests:", error)
+      }
+    }
+    
+    fetchRequests()
 
     // Listen for donors
     const donorsUnsubscribe = onSnapshot(collection(db, 'donors'), (snapshot) => {
@@ -254,7 +285,6 @@ export default function SuperAdminDashboard() {
     })
 
     return () => {
-      unsubscribe()
       donorsUnsubscribe()
       campsUnsubscribe()
       usersUnsubscribe()
@@ -494,6 +524,7 @@ export default function SuperAdminDashboard() {
       toast.error("Failed to load donor information")
     } finally {
       setLoadingDonors(false)
+      setButtonLoadingId(null)
     }
   }
 
@@ -706,13 +737,25 @@ export default function SuperAdminDashboard() {
                         <Button onClick={() => openDetailsModal(request, 'request')} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition">
                           More
                         </Button>
-                        {/* Only show View Donors button if UnitsDonated > 0 */}
-                        {(parseInt(request.UnitsDonated) > 0 || request.UnitsDonated > 0) && (
+                        {/* Show View Donors button if completed donations or initiated donations */}
+                        {(parseInt(request.UnitsDonated) > 0 || request.hasDonations) && (
                           <Button 
-                            onClick={() => openDonorsModal(request.id)} 
+                            onClick={() => {
+                              if (buttonLoadingId === request.id) return;
+                              setButtonLoadingId(request.id);
+                              openDonorsModal(request.id);
+                            }}
                             className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded transition"
+                            disabled={buttonLoadingId === request.id}
                           >
-                            View Donors
+                            {buttonLoadingId === request.id ? (
+                              <div className="flex items-center">
+                                <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                                Loading
+                              </div>
+                            ) : (
+                              "View Donors"
+                            )}
                           </Button>
                         )}
                       </td>
@@ -1287,7 +1330,7 @@ export default function SuperAdminDashboard() {
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp Number</label>
+                          <label className="block text-sm font-medium text-gray-700">WhatsApp Number</label>
                           {isEditing ? (
                             <Input 
                               value={editedDonorData.WhatsappNumber || ''} 
@@ -1317,7 +1360,7 @@ export default function SuperAdminDashboard() {
                         )}
 
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Permanent City</label>
+                          <label className="block text-sm font-medium text-gray-700">Permanent City</label>
                           {isEditing ? (
                             <Select 
                               value={editedDonorData.PermanentCity || ''} 
@@ -1338,7 +1381,7 @@ export default function SuperAdminDashboard() {
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Current City</label>
+                          <label className="block text-sm font-medium text-gray-700">Current City</label>
                           {isEditing && !sameAsPermanent ? (
                             <Select 
                               value={editedDonorData.ResidentCity || ''} 
