@@ -150,7 +150,7 @@ const Navbar = () => {
               <div className="relative">
                 <button
                   onClick={() => setShowProfileDropdown((prev) => !prev)}
-                  className="bg-white text-red-600 hover:bg-red-100 p-2 rounded-md flex items-center justify-center"
+                  className="bg-white text-red-600 hover:bg-red-100 p-2 rounded-full flex items-center justify-center"
                 >
                   {profilePicture ? (
                     <img
@@ -233,7 +233,7 @@ const Navbar = () => {
                 <div className="relative">
                   <button
                     onClick={() => setShowProfileDropdown((prev) => !prev)}
-                    className="w-full text-center bg-white text-red-600 hover:bg-red-100 p-2 rounded-md flex items-center justify-center"
+                    className="w-full text-center bg-white text-red-600 hover:bg-red-100 p-2 rounded-full flex items-center justify-center"
                   >
                     {profilePicture ? (
                       <img

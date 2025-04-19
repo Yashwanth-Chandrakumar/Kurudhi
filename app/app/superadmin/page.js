@@ -73,8 +73,16 @@ export default function SuperAdminDashboard() {
   const [donors, setDonors] = useState([])
   const [camps, setCamps] = useState([])
   const [allUsers, setAllUsers] = useState([])
-
-  // Stats for cards
+  const [userRoleMap, setUserRoleMap] = useState({})
+  const [assignedCity, setAssignedCity] = useState('')
+  const [activeBloodGroupFilter, setActiveBloodGroupFilter] = useState('all')
+  const [activeGenderFilter, setActiveGenderFilter] = useState('all')
+  const [activeCityFilter, setActiveCityFilter] = useState('all')
+  const [donorStats, setDonorStats] = useState({
+    availableDonors: 0,
+    unavailableDonors: 0,
+    byBloodGroup: {},
+  });
   const [stats, setStats] = useState({
     totalRequests: 0,
     currentRequests: 0,
@@ -237,17 +245,50 @@ export default function SuperAdminDashboard() {
     fetchRequests()
 
     // Listen for donors
-    const donorsUnsubscribe = onSnapshot(collection(db, 'donors'), (snapshot) => {
-      const donorsList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
+    const unsubscribe = onSnapshot(collection(db, 'donors'), (snapshot) => {
+      const donorsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
       setDonors(donorsList)
-      setStats(prev => ({
-        ...prev,
-        totalDonors: donorsList.length
-      }))
-    })
+      
+      // Calculate donor statistics
+      const today = new Date();
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(today.getMonth() - 3);
+      
+      // Initialize blood group stats
+      const bloodGroupStats = {};
+      ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].forEach(group => {
+        bloodGroupStats[group] = { total: 0, available: 0, unavailable: 0 };
+      });
+      
+      let availableCount = 0;
+      let unavailableCount = 0;
+      
+      donorsList.forEach(donor => {
+        // Count by blood group
+        const bloodGroup = donor.BloodGroup;
+        if (bloodGroup && bloodGroupStats[bloodGroup]) {
+          bloodGroupStats[bloodGroup].total += 1;
+          
+          // Check availability based on last donation date
+          const lastDonationDate = donor.LastDonationDate ? new Date(donor.LastDonationDate) : null;
+          
+          if (!lastDonationDate || lastDonationDate < threeMonthsAgo) {
+            bloodGroupStats[bloodGroup].available += 1;
+            availableCount += 1;
+          } else {
+            bloodGroupStats[bloodGroup].unavailable += 1;
+            unavailableCount += 1;
+          }
+        }
+      });
+      
+      setDonorStats({
+        availableDonors: availableCount,
+        unavailableDonors: unavailableCount,
+        byBloodGroup: bloodGroupStats
+      });
+    });
+    return () => unsubscribe();
 
     // Listen for camps
     const campsUnsubscribe = onSnapshot(collection(db, 'camps'), (snapshot) => {
@@ -285,11 +326,10 @@ export default function SuperAdminDashboard() {
     })
 
     return () => {
-      donorsUnsubscribe()
       campsUnsubscribe()
       usersUnsubscribe()
     }
-  }, [user, userRole])
+  }, [user, userRole, db])
 
   // Update request status function
   const updateRequestStatus = async (id, status, emergencyLevel = null) => {
@@ -347,11 +387,17 @@ export default function SuperAdminDashboard() {
   const handleSidebarClick = (tab) => {
     setActiveTab(tab)
     setCurrentPage(1)
-    // Reset sub-filters for non-manage sections
+    setSearchQuery('')
+    
+    // Reset sub-filters when switching tabs
     if (tab === 'requests') {
-      setActiveRequestFilter('received')
+      setActiveRequestFilter('all')
     } else if (tab === 'camps') {
       setActiveCampFilter('all')
+    } else if (tab === 'donors') {
+      setActiveBloodGroupFilter('all')
+      setActiveGenderFilter('all')
+      setActiveCityFilter('all')
     }
     setIsSidebarOpen(false)
   }
@@ -401,7 +447,37 @@ export default function SuperAdminDashboard() {
       ? camps
       : camps.filter(camp => camp.CampStatus === activeCampFilter)
   } else if (activeTab === 'donors') {
-    filteredData = donors
+    // Apply multiple filters on donors
+    filteredData = donors.filter(donor => {
+      // First apply search query filter (case-insensitive)
+      if (searchQuery && donor.Name && !donor.Name.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+      
+      // Filter by blood group
+      if (activeBloodGroupFilter !== 'all' && donor.BloodGroup !== activeBloodGroupFilter) {
+        return false;
+      }
+      
+      // Filter by gender (case-insensitive comparison)
+      if (activeGenderFilter !== 'all' && 
+          (!donor.Gender || donor.Gender.toLowerCase() !== activeGenderFilter.toLowerCase())) {
+        return false;
+      }
+      
+      // Filter by city
+      if (activeCityFilter !== 'all' && donor.ResidentCity !== activeCityFilter) {
+        return false;
+      }
+      
+      return true;
+    });
+  } else if (activeTab === 'users') {
+    filteredData = allUsers
+      .filter(u => u.email && u.email.toLowerCase().includes(searchQuery.toLowerCase()))
+  } else if (activeTab === 'manageAdmins') {
+    filteredData = allUsers
+      .filter(u => u.email && u.email.toLowerCase().includes(searchQuery.toLowerCase()))
   }
   const indexOfLastItem = currentPage * itemsPerPage
   const indexOfFirstItem = indexOfLastItem - itemsPerPage
@@ -737,27 +813,29 @@ export default function SuperAdminDashboard() {
                         <Button onClick={() => openDetailsModal(request, 'request')} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition">
                           More
                         </Button>
-                        {/* Show View Donors button if completed donations or initiated donations */}
-                        {(parseInt(request.UnitsDonated) > 0 || request.hasDonations) && (
-                          <Button 
-                            onClick={() => {
-                              if (buttonLoadingId === request.id) return;
-                              setButtonLoadingId(request.id);
-                              openDonorsModal(request.id);
-                            }}
-                            className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded transition"
-                            disabled={buttonLoadingId === request.id}
-                          >
-                            {buttonLoadingId === request.id ? (
-                              <div className="flex items-center">
-                                <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                                Loading
-                              </div>
-                            ) : (
-                              "View Donors"
-                            )}
-                          </Button>
-                        )}
+                        <div className="text-right">
+                          {/* Show View Donors button only for accepted or completed requests */}
+                          {(request.Verified === "accepted" || request.Verified === "completed") && (
+                            <Button 
+                              onClick={() => {
+                                if (buttonLoadingId === request.id) return;
+                                setButtonLoadingId(request.id);
+                                openDonorsModal(request.id);
+                              }}
+                              className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded transition"
+                              disabled={buttonLoadingId === request.id}
+                            >
+                              {buttonLoadingId === request.id ? (
+                                <div className="flex items-center">
+                                  <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                                  Loading
+                                </div>
+                              ) : (
+                                "View Donors"
+                              )}
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -768,52 +846,310 @@ export default function SuperAdminDashboard() {
         )}
 
         {activeTab === 'donors' && (
-          <div className="bg-white rounded-xl shadow-lg p-8 mb-10">
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="px-6 py-3 font-semibold">Profile</th>
-                    <th className="px-6 py-3 font-semibold">Name</th>
-                    <th className="px-6 py-3 font-semibold">Blood Group</th>
-                    <th className="px-6 py-3 font-semibold">Mobile</th>
-                    <th className="px-6 py-3 font-semibold">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentItems.map(donor => (
-                    <tr key={donor.id} className="border-b hover:bg-gray-50 transition">
-                      <td className="px-6 py-4">
-                        {donor.profile_picture ? (
-                          <Image 
-                            src={donor.profile_picture} 
-                            alt={donor.Name} 
-                            width={40} 
-                            height={40} 
-                            className="rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                            <span className="text-red-600 font-semibold text-sm">
-                              {donor.Name && donor.Name.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">{donor.Name}</td>
-                      <td className="px-6 py-4">{donor.BloodGroup}</td>
-                      <td className="px-6 py-4">{donor.MobileNumber}</td>
-                      <td className="px-6 py-4">
-                        <Button onClick={() => openDetailsModal(donor, 'donor')} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition">
-                          More
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <>
+            {/* Donor Statistics Cards */}
+            <div className="mb-8">
+              <h3 className="text-xl font-bold text-gray-800 mb-4">Donor Statistics</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-white rounded-xl shadow-md p-6">
+                  <h4 className="text-lg font-semibold text-gray-700 mb-2">Total Donors</h4>
+                  <p className="text-3xl font-bold text-red-600">{donors.length}</p>
+                </div>
+                <div className="bg-white rounded-xl shadow-md p-6">
+                  <h4 className="text-lg font-semibold text-gray-700 mb-2">Available Donors</h4>
+                  <p className="text-3xl font-bold text-green-600">{donorStats.availableDonors}</p>
+                  <p className="text-sm text-gray-500">Eligible to donate now</p>
+                </div>
+                <div className="bg-white rounded-xl shadow-md p-6">
+                  <h4 className="text-lg font-semibold text-gray-700 mb-2">Unavailable Donors</h4>
+                  <p className="text-3xl font-bold text-orange-500">{donorStats.unavailableDonors}</p>
+                  <p className="text-sm text-gray-500">Recently donated (within 3 months)</p>
+                </div>
+              </div>
+              
+              <h3 className="text-xl font-bold text-gray-800 mb-4">Blood Group Distribution</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                {Object.entries(donorStats.byBloodGroup).map(([bloodGroup, stats]) => (
+                  stats.total > 0 && (
+                    <div key={bloodGroup} className="bg-white rounded-xl shadow-md p-4 border-l-4 border-red-500">
+                      <div className="flex justify-between items-center mb-2">
+                        <h4 className="text-xl font-bold text-red-600">{bloodGroup}</h4>
+                        <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-sm">
+                          {stats.total} donors
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Available:</span>
+                          <span className="font-medium text-green-600">{stats.available}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Unavailable:</span>
+                          <span className="font-medium text-orange-500">{stats.unavailable}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                ))}
+              </div>
             </div>
-          </div>
+
+            {/* Donor Filters */}
+            <div className="mb-6 bg-white p-6 rounded-xl shadow-md">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-800">Donor Filters</h3>
+                <button
+                  onClick={() => {
+                    setActiveBloodGroupFilter('all');
+                    setActiveGenderFilter('all');
+                    setActiveCityFilter('all');
+                    setSearchQuery('');
+                    setCurrentPage(1);
+                  }}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded transition flex items-center"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Reset Filters
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Search Donors</h3>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search by name..."
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    />
+                    {searchQuery && (
+                      <button 
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Filter by Gender</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { label: 'All', value: 'all' },
+                      { label: 'Male', value: 'male' },
+                      { label: 'Female', value: 'female' }
+                    ].map(gender => (
+                      <button
+                        key={gender.value}
+                        onClick={() => { setActiveGenderFilter(gender.value); setCurrentPage(1) }}
+                        className={`px-4 py-2 rounded ${
+                          activeGenderFilter === gender.value ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-800'
+                        }`}
+                      >
+                        {gender.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Filter by Blood Group</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { label: 'All', value: 'all' },
+                      { label: 'A+', value: 'A+' },
+                      { label: 'A-', value: 'A-' },
+                      { label: 'B+', value: 'B+' },
+                      { label: 'B-', value: 'B-' },
+                      { label: 'AB+', value: 'AB+' },
+                      { label: 'AB-', value: 'AB-' },
+                      { label: 'O+', value: 'O+' },
+                      { label: 'O-', value: 'O-' }
+                    ].map(group => (
+                      <button
+                        key={group.value}
+                        onClick={() => { setActiveBloodGroupFilter(group.value); setCurrentPage(1) }}
+                        className={`px-4 py-2 rounded ${
+                          activeBloodGroupFilter === group.value ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-800'
+                        }`}
+                      >
+                        {group.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Filter by City</h3>
+                  <Select
+                    value={activeCityFilter}
+                    onValueChange={(value) => {
+                      setActiveCityFilter(value);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-full bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500">
+                      <SelectValue placeholder="Select a city" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Cities</SelectItem>
+                      {[
+                        "Ambur",
+                        "Arakkonam",
+                        "Ariyalur",
+                        "Aruppukkottai",
+                        "Attur",
+                        "Chengalpattu",
+                        "Chennai",
+                        "Coimbatore",
+                        "Cuddalore",
+                        "Cumbum",
+                        "Dharmapuri",
+                        "Dindigul",
+                        "Erode",
+                        "Gudiyatham",
+                        "Hosur",
+                        "Kanchipuram",
+                        "Karaikudi",
+                        "Karur",
+                        "Kanyakumari",
+                        "Kovilpatti",
+                        "Krishnagiri",
+                        "Kumbakonam",
+                        "Madurai",
+                        "Mayiladuthurai",
+                        "Mettupalayam",
+                        "Nagapattinam",
+                        "Namakkal",
+                        "Nagercoil",
+                        "Neyveli",
+                        "Ooty",
+                        "Palani",
+                        "Paramakudi",
+                        "Perambalur",
+                        "Pollachi",
+                        "Pudukottai",
+                        "Rajapalayam",
+                        "Ramanathapuram",
+                        "Ranipet",
+                        "Salem",
+                        "Sivagangai",
+                        "Sivakasi",
+                        "Tenkasi",
+                        "Thanjavur",
+                        "Theni",
+                        "Thoothukudi",
+                        "Tirupattur",
+                        "Tiruchendur",
+                        "Tiruchirappalli",
+                        "Tirunelveli",
+                        "Tiruppur",
+                        "Tiruvallur",
+                        "Tiruvannamalai",
+                        "Tiruvarur",
+                        "Tuticorin",
+                        "Udumalaipettai",
+                        "Valparai",
+                        "Vandavasi",
+                        "Vellore",
+                        "Viluppuram",
+                        "Virudhunagar"
+                      ].map(city => (
+                        <SelectItem key={city} value={city}>{city}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              {/* Active filter summary */}
+              {(activeBloodGroupFilter !== 'all' || activeGenderFilter !== 'all' || activeCityFilter !== 'all' || searchQuery) && (
+                <div className="mt-6 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                  <h4 className="font-medium text-blue-800 mb-2">Active Filters:</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {searchQuery && (
+                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                        Search: "{searchQuery}"
+                      </span>
+                    )}
+                    {activeBloodGroupFilter !== 'all' && (
+                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                        Blood Group: {activeBloodGroupFilter}
+                      </span>
+                    )}
+                    {activeGenderFilter !== 'all' && (
+                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                        Gender: {activeGenderFilter}
+                      </span>
+                    )}
+                    {activeCityFilter !== 'all' && (
+                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                        City: {activeCityFilter}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg p-8 mb-10">
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="px-6 py-3 font-semibold">Profile</th>
+                      <th className="px-6 py-3 font-semibold">Name</th>
+                      <th className="px-6 py-3 font-semibold">Blood Group</th>
+                      <th className="px-6 py-3 font-semibold">Mobile</th>
+                      <th className="px-6 py-3 font-semibold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentItems.map(donor => (
+                      <tr key={donor.id} className="border-b hover:bg-gray-50 transition">
+                        <td className="px-6 py-4">
+                          {donor.profile_picture ? (
+                            <Image 
+                              src={donor.profile_picture} 
+                              alt={donor.Name} 
+                              width={40} 
+                              height={40} 
+                              className="rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                              <span className="text-red-600 font-semibold text-sm">
+                                {donor.Name && donor.Name.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">{donor.Name}</td>
+                        <td className="px-6 py-4">{donor.BloodGroup}</td>
+                        <td className="px-6 py-4">{donor.MobileNumber}</td>
+                        <td className="px-6 py-4">
+                          <Button onClick={() => openDetailsModal(donor, 'donor')} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition">
+                            More
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
         )}
 
         {activeTab === 'camps' && (
