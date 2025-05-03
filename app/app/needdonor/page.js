@@ -11,6 +11,7 @@ import { initializeApp } from 'firebase/app';
 import { addDoc, collection, getFirestore } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const SECRET_KEY = process.env.NEXT_PUBLIC_UUID_SECRET || "default_secret_key";
 const indianStates = [
@@ -281,6 +282,7 @@ const RequestDonor = () => {
     gender: '',
     reasonForBlood: '',
     bloodGroup: '',
+    anyBloodGroupAccepted: false,
     unitsNeeded: '',
     hospital: '',
     attenderName: '',
@@ -292,6 +294,7 @@ const RequestDonor = () => {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [submitStatus, setSubmitStatus] = useState({ type: '', message: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
@@ -301,6 +304,9 @@ const RequestDonor = () => {
   const validateForm = (data, fields) => {
     const newErrors = {};
     fields.forEach(field => {
+      if (field === 'bloodGroup' && data.anyBloodGroupAccepted) {
+        return;
+      }
       const error = validateField(field, data[field], validationRules);
       if (error) {
         newErrors[field] = error;
@@ -329,6 +335,10 @@ const RequestDonor = () => {
     setTouched(prev => ({ ...prev, [name]: true }));
   };
 
+  const handleCheckboxChange = (checked) => {
+    setFormData(prev => ({ ...prev, anyBloodGroupAccepted: checked }));
+  };
+
   const getStepFields = (step) => {
     switch (step) {
       case 0:
@@ -348,6 +358,17 @@ const RequestDonor = () => {
     const stepFields = getStepFields(currentStep);
     const stepErrors = validateForm(formData, stepFields);
     const hasErrors = Object.keys(stepErrors).length > 0;
+    
+    if (currentStep === 1) {
+      const allFieldsFilled = stepFields.every(field => {
+        if (field === 'bloodGroup' && formData.anyBloodGroupAccepted) {
+          return true;
+        }
+        return formData[field];
+      });
+      return !hasErrors && allFieldsFilled;
+    }
+    
     const allFieldsFilled = stepFields.every(field => formData[field]);
     return !hasErrors && allFieldsFilled;
   };
@@ -377,6 +398,9 @@ const RequestDonor = () => {
       return;
     }
 
+    // Set isSubmitting to true to disable the button
+    setIsSubmitting(true);
+
     try {
       const encryptedUUID = localStorage.getItem("userUUID");
       let uuid = '';
@@ -390,6 +414,7 @@ const RequestDonor = () => {
         AttenderName: formData.attenderName,
         AttenderMobile: parseInt(formData.attenderMobile),
         BloodGroup: formData.bloodGroup,
+        AnyBloodGroupAccepted: formData.anyBloodGroupAccepted,
         City: formData.city,
         Country: formData.country,
         Gender: formData.gender,
@@ -414,18 +439,14 @@ const RequestDonor = () => {
         router.push("/");
       }, 2000);
 
-      // (Optional) Reset form fields if desired.
-      // setFormData({ ... });
-      // setCurrentStep(0);
-      // setErrors({});
-      // setTouched({});
-      
     } catch (error) {
       console.error('Error adding request: ', error);
       setSubmitStatus({
         type: 'error',
         message: 'Failed to submit. Please try again.'
       });
+      // Reset isSubmitting to allow retrying
+      setIsSubmitting(false);
     }
   };
 
@@ -528,8 +549,9 @@ const RequestDonor = () => {
                       name="bloodGroup" 
                       value={formData.bloodGroup} 
                       onValueChange={(value) => handleSelectChange('bloodGroup', value)}
+                      disabled={formData.anyBloodGroupAccepted}
                     >
-                      <SelectTrigger className={`border-red-200 ${touched.bloodGroup && errors.bloodGroup ? 'border-red-500' : ''}`}>
+                      <SelectTrigger className={`border-red-200 ${touched.bloodGroup && errors.bloodGroup && !formData.anyBloodGroupAccepted ? 'border-red-500' : ''}`}>
                         <SelectValue placeholder="Select blood group" />
                       </SelectTrigger>
                       <SelectContent>
@@ -539,6 +561,20 @@ const RequestDonor = () => {
                       </SelectContent>
                     </Select>
                     {renderError('bloodGroup')}
+                    
+                    <div className="flex items-center space-x-2 mt-3">
+                      <Checkbox 
+                        id="anyBloodGroup" 
+                        checked={formData.anyBloodGroupAccepted}
+                        onCheckedChange={handleCheckboxChange}
+                      />
+                      <label 
+                        htmlFor="anyBloodGroup" 
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Any blood group is preferred (for dialysis, etc.)
+                      </label>
+                    </div>
                   </div>
                   <div>
                     <Label className="text-red-700">Units Required</Label>
@@ -681,7 +717,16 @@ const RequestDonor = () => {
                     <div className="text-red-900">{formData.reasonForBlood}</div>
                     
                     <div className="text-red-600">Blood Group:</div>
-                    <div className="text-red-900">{formData.bloodGroup}</div>
+                    <div className="text-red-900">
+                      {formData.anyBloodGroupAccepted 
+                        ? "Any blood group" 
+                        : formData.bloodGroup}
+                      {formData.anyBloodGroupAccepted && (
+                        <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                          Any blood group accepted
+                        </span>
+                      )}
+                    </div>
                     
                     <div className="text-red-600">Units Needed:</div>
                     <div className="text-red-900">{formData.unitsNeeded}</div>
@@ -731,10 +776,17 @@ const RequestDonor = () => {
                   <Button 
                     type="button"
                     onClick={handleSubmit}
-                    disabled={!isStepValid()}
+                    disabled={!isStepValid() || isSubmitting}
                     className="ml-auto bg-red-600 hover:bg-red-700 text-white disabled:bg-red-300"
                   >
-                    Submit Request
+                    {isSubmitting ? (
+                      <div className="flex items-center">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                        Submitting...
+                      </div>
+                    ) : (
+                      "Submit Request"
+                    )}
                   </Button>
                 )}
               </div>

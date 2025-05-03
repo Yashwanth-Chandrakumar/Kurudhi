@@ -239,7 +239,8 @@ export default function DashboardPage() {
       // Only show completed requests that the user has participated in
       return request.Verified === 'completed' && userDonations.includes(request.id);
     } else if (activeTab === 'mytype' && donorRecord) {
-      return request.BloodGroup === donorRecord.BloodGroup && request.Verified === 'accepted';
+      // Return requests matching user's blood group OR requests that accept any blood group
+      return (request.BloodGroup === donorRecord.BloodGroup || request.AnyBloodGroupAccepted === true) && request.Verified === 'accepted';
     }
     return true;
   });
@@ -573,7 +574,7 @@ export default function DashboardPage() {
             </div>
           )
         ) : (
-          donorRecord && donorRecord.BloodGroup === request.BloodGroup ? (
+          donorRecord && (donorRecord.BloodGroup === request.BloodGroup || request.AnyBloodGroupAccepted === true) ? (
             <Button 
               onClick={handleDonateClick} 
                 disabled={!canDonate() || request.Verified === 'completed'}
