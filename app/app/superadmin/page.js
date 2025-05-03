@@ -97,7 +97,6 @@ export default function SuperAdminDashboard() {
 
   // Main tab (sidebar) state. For superadmins we allow:
   // 'requests', 'camps', 'donors', 'manageAdmins'
-  // const [activeTab, setActiveTab] = useState('requests')
   // Sub-tab states (only for requests and camps)
   const [activeRequestFilter, setActiveRequestFilter] = useState('received') // Options: received, accepted, completed, rejected, all
   const [activeCampFilter, setActiveCampFilter] = useState('all') // Options: all, upcoming, ongoing, completed
@@ -142,7 +141,7 @@ export default function SuperAdminDashboard() {
   const [editedDonorData, setEditedDonorData] = useState(null);
   const [sameAsPermanent, setSameAsPermanent] = useState(false);
 
-  // Add 'users' to possible active tabs
+  // Main tab (sidebar) state (removing commented out code)
   const [activeTab, setActiveTab] = useState('requests')
   
   // Add state for user details modal
@@ -245,7 +244,7 @@ export default function SuperAdminDashboard() {
     fetchRequests()
 
     // Listen for donors
-    const unsubscribe = onSnapshot(collection(db, 'donors'), (snapshot) => {
+    const donorsUnsubscribe = onSnapshot(collection(db, 'donors'), (snapshot) => {
       const donorsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
       setDonors(donorsList)
       
@@ -288,46 +287,50 @@ export default function SuperAdminDashboard() {
         byBloodGroup: bloodGroupStats
       });
     });
-    return () => unsubscribe();
 
     // Listen for camps
     const campsUnsubscribe = onSnapshot(collection(db, 'camps'), (snapshot) => {
-      const now = new Date()
+      const now = new Date();
       const campsList = snapshot.docs.map(doc => {
-        const data = doc.data()
-        const campStart = new Date(data.CampStart)
-        const campEnd = new Date(data.CampEnd)
-        let computedStatus = ''
+        const data = doc.data();
+        const campStart = new Date(data.CampStart);
+        const campEnd = new Date(data.CampEnd);
+        let computedStatus = '';
+        
         if (campStart > now) {
-          computedStatus = 'upcoming'
+          computedStatus = 'upcoming';
         } else if (campStart <= now && campEnd >= now) {
-          computedStatus = 'ongoing'
+          computedStatus = 'ongoing';
         } else {
-          computedStatus = 'completed'
+          computedStatus = 'completed';
         }
-        return { id: doc.id, ...data, CampStatus: computedStatus }
-      })
-      setCamps(campsList)
+        
+        return { id: doc.id, ...data, CampStatus: computedStatus };
+      });
+      
+      setCamps(campsList);
+      
       setStats(prev => ({
         ...prev,
         upcomingCamps: campsList.filter(camp => camp.CampStatus === "upcoming").length,
         ongoingCamps: campsList.filter(camp => camp.CampStatus === "ongoing").length,
         completedCamps: campsList.filter(camp => camp.CampStatus === "completed").length
-      }))
-    })
+      }));
+    });
 
-    // Listen for all users (for Manage Admins)
+    // Listen for all users (for Manage Admins and Users sections)
     const usersUnsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
       const usersList = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }))
-      setAllUsers(usersList)
-    })
+      }));
+      setAllUsers(usersList);
+    });
 
     return () => {
-      campsUnsubscribe()
-      usersUnsubscribe()
+      donorsUnsubscribe();
+      campsUnsubscribe();
+      usersUnsubscribe();
     }
   }, [user, userRole, db])
 
@@ -391,7 +394,7 @@ export default function SuperAdminDashboard() {
     
     // Reset sub-filters when switching tabs
     if (tab === 'requests') {
-      setActiveRequestFilter('all')
+      setActiveRequestFilter('received')
     } else if (tab === 'camps') {
       setActiveCampFilter('all')
     } else if (tab === 'donors') {
@@ -473,20 +476,25 @@ export default function SuperAdminDashboard() {
       return true;
     });
   } else if (activeTab === 'users') {
-    filteredData = allUsers
-      .filter(u => u.email && u.email.toLowerCase().includes(searchQuery.toLowerCase()))
+    // Make sure we have allUsers data before filtering
+    filteredData = allUsers && allUsers.length > 0
+      ? allUsers.filter(u => !searchQuery || (u.email && u.email.toLowerCase().includes(searchQuery.toLowerCase())))
+      : []
   } else if (activeTab === 'manageAdmins') {
-    filteredData = allUsers
-      .filter(u => u.email && u.email.toLowerCase().includes(searchQuery.toLowerCase()))
+    // Make sure we have allUsers data before filtering
+    filteredData = allUsers && allUsers.length > 0
+      ? allUsers.filter(u => !searchQuery || (u.email && u.email.toLowerCase().includes(searchQuery.toLowerCase())))
+      : []
   }
+  
   const indexOfLastItem = currentPage * itemsPerPage
   const indexOfFirstItem = indexOfLastItem - itemsPerPage
   const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem)
 
   // Filter users for Manage Admins based on search query
-  const filteredUsers = allUsers.filter(u =>
-    u.email.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredUsers = allUsers && allUsers.length > 0
+    ? allUsers.filter(u => !searchQuery || (u.email && u.email.toLowerCase().includes(searchQuery.toLowerCase())))
+    : []
 
   // Add function to handle donor data changes
   const handleDonorChange = (field, value) => {
@@ -1211,9 +1219,8 @@ export default function SuperAdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {allUsers
-                    .filter(u => u.email && u.email.toLowerCase().includes(searchQuery.toLowerCase()))
-                    .map(user => {
+                  {currentItems.length > 0 ? (
+                    currentItems.map(user => {
                       // Check if user has donor data (based on existence in donors state)
                       const isDonor = donors.some(donor => donor.Email === user.email);
                       
@@ -1222,7 +1229,11 @@ export default function SuperAdminDashboard() {
                           <td className="px-6 py-4">{user.email}</td>
                           <td className="px-6 py-4">{user.role || 'user'}</td>
                           <td className="px-6 py-4">
-                            {user.createdAt ? new Date(user.createdAt.toDate()).toLocaleDateString() : 'N/A'}
+                            {user.createdAt ? 
+                              (typeof user.createdAt.toDate === 'function' ? 
+                                new Date(user.createdAt.toDate()).toLocaleDateString() : 
+                                new Date(user.createdAt).toLocaleDateString()
+                              ) : 'N/A'}
                           </td>
                           <td className="px-6 py-4">
                             {isDonor ? (
@@ -1245,7 +1256,14 @@ export default function SuperAdminDashboard() {
                           </td>
                         </tr>
                       );
-                    })}
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+                        {searchQuery ? 'No users found matching your search.' : 'No users found.'}
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1276,35 +1294,43 @@ export default function SuperAdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredUsers.map(user => (
-                    <tr key={user.id} className="border-b hover:bg-gray-50 transition">
-                      <td className="px-6 py-4">{user.email}</td>
-                      <td className="px-6 py-4">{user.role || 'user'}</td>
-                      <td className="px-6 py-4">{user.role === 'admin' ? (user.assignedCity || 'None assigned') : '-'}</td>
-                      <td className="px-6 py-4">
-                        <Button
-                          onClick={() => openUserDetailsModal(user)}
-                          className="bg-purple-500 hover:bg-purple-600 text-white"
-                        >
-                          View Details
-                        </Button>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex gap-2">
-                          {['user', 'admin', 'superadmin']
-                            .filter(role => role !== (user.role || 'user'))
-                            .map(role => (
-                              <Button
-                                key={role}
-                                onClick={() => handleRoleChangeClick(user.id, user.email, role)}
-                              >
-                                {`Make ${role.charAt(0).toUpperCase() + role.slice(1)}`}
-                              </Button>
-                            ))}
-                        </div>
+                  {currentItems.length > 0 ? (
+                    currentItems.map(user => (
+                      <tr key={user.id} className="border-b hover:bg-gray-50 transition">
+                        <td className="px-6 py-4">{user.email}</td>
+                        <td className="px-6 py-4">{user.role || 'user'}</td>
+                        <td className="px-6 py-4">{user.role === 'admin' ? (user.assignedCity || 'None assigned') : '-'}</td>
+                        <td className="px-6 py-4">
+                          <Button
+                            onClick={() => openUserDetailsModal(user)}
+                            className="bg-purple-500 hover:bg-purple-600 text-white"
+                          >
+                            View Details
+                          </Button>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex gap-2">
+                            {['user', 'admin', 'superadmin']
+                              .filter(role => role !== (user.role || 'user'))
+                              .map(role => (
+                                <Button
+                                  key={role}
+                                  onClick={() => handleRoleChangeClick(user.id, user.email, role)}
+                                >
+                                  {`Make ${role.charAt(0).toUpperCase() + role.slice(1)}`}
+                                </Button>
+                              ))}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+                        {searchQuery ? 'No users found matching your search.' : 'No users found.'}
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
