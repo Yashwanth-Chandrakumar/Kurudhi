@@ -20,6 +20,69 @@ const indianStates = [
   "West Bengal"
 ];
 
+const tamilNaduCities = [
+  "Ambur",
+  "Arakkonam",
+  "Ariyalur",
+  "Aruppukkottai",
+  "Attur",
+  "Chengalpattu",
+  "Chennai",
+  "Coimbatore",
+  "Cuddalore",
+  "Cumbum",
+  "Dharmapuri",
+  "Dindigul",
+  "Erode",
+  "Gudiyatham",
+  "Hosur",
+  "Kanchipuram",
+  "Karaikudi",
+  "Karur",
+  "Kanyakumari",
+  "Kovilpatti",
+  "Krishnagiri",
+  "Kumbakonam",
+  "Madurai",
+  "Mayiladuthurai",
+  "Mettupalayam",
+  "Nagapattinam",
+  "Namakkal",
+  "Nagercoil",
+  "Neyveli",
+  "Ooty",
+  "Palani",
+  "Paramakudi",
+  "Perambalur",
+  "Pollachi",
+  "Pudukottai",
+  "Rajapalayam",
+  "Ramanathapuram",
+  "Ranipet",
+  "Salem",
+  "Sivagangai",
+  "Sivakasi",
+  "Tenkasi",
+  "Thanjavur",
+  "Theni",
+  "Thoothukudi",
+  "Tirupattur",
+  "Tiruchendur",
+  "Tiruchirappalli",
+  "Tirunelveli",
+  "Tiruppur",
+  "Tiruvallur",
+  "Tiruvannamalai",
+  "Tiruvarur",
+  "Tuticorin",
+  "Udumalaipettai",
+  "Valparai",
+  "Vandavasi",
+  "Vellore",
+  "Viluppuram",
+  "Virudhunagar"
+];
+
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -513,18 +576,6 @@ const HostBloodCamp = () => {
       {renderError('campLocation')}
     </div>
     <div>
-      <Label className="text-red-700">Camp City</Label>
-      <Input
-        name="campCity"
-        value={formData.campCity}
-        onChange={handleChange}
-        onBlur={() => handleBlur('campCity')}
-        className={`border-red-200 focus:ring-red-500 ${touched.campCity && errors.campCity ? 'border-red-500' : ''}`}
-        placeholder="Enter city"
-      />
-      {renderError('campCity')}
-    </div>
-    <div>
       <Label className="text-red-700">Camp State</Label>
       <Select 
         name="campState" 
@@ -542,6 +593,36 @@ const HostBloodCamp = () => {
       </Select>
       {renderError('campState')}
     </div>
+    <div>
+      <Label className="text-red-700">Camp City</Label>
+      {formData.campState === "Tamil Nadu" ? (
+        <Select 
+          name="campCity" 
+          value={formData.campCity} 
+          onValueChange={(value) => handleSelectChange('campCity', value)}
+        >
+          <SelectTrigger className={`border-red-200 ${touched.campCity && errors.campCity ? 'border-red-500' : ''}`}>
+            <SelectValue placeholder="Select city" />
+          </SelectTrigger>
+          <SelectContent>
+            {tamilNaduCities.map((city, idx) => (
+              <SelectItem key={idx} value={city}>{city}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Input
+          name="campCity"
+          value={formData.campCity}
+          onChange={handleChange}
+          onBlur={() => handleBlur('campCity')}
+          className={`border-red-200 focus:ring-red-500 ${touched.campCity && errors.campCity ? 'border-red-500' : ''}`}
+          placeholder="Enter city"
+        />
+      )}
+      {renderError('campCity')}
+    </div>
+    
     <div>
       <Label className="text-red-700">Camp Country</Label>
       <Select 
