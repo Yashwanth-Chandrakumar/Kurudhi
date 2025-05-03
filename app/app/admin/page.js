@@ -22,7 +22,7 @@ import {
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { toast } from 'react-hot-toast'
 import {
   Select,
@@ -72,8 +72,6 @@ export default function AdminDashboard() {
   const [activeCampFilter, setActiveCampFilter] = useState('all')
   const [activeBloodGroupFilter, setActiveBloodGroupFilter] = useState('all')
   const [activeGenderFilter, setActiveGenderFilter] = useState('all')
-  const [activeCityFilter, setActiveCityFilter] = useState('all')
-  const [availableCities, setAvailableCities] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [donorStats, setDonorStats] = useState({
     byBloodGroup: {},
@@ -103,8 +101,9 @@ export default function AdminDashboard() {
   const [requestsWithDonations, setRequestsWithDonations] = useState([])
   const [buttonLoadingId, setButtonLoadingId] = useState(null)
 
-  // Define fetchRequests BEFORE any useEffect calls
-  const fetchRequests = async () => {
+  // Before any useEffect calls, update the fetchRequests function to use useCallback
+  // Define fetchRequests with useCallback
+  const fetchRequests = useCallback(async () => {
     try {
       const requestsRef = collection(db, 'requests');
       let requestQuery;
@@ -142,7 +141,7 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error("Error fetching requests: ", error);
     }
-  };
+  }, [db, userRole, assignedCity]);
 
   // Check user authorization
   useEffect(() => {
@@ -189,83 +188,103 @@ export default function AdminDashboard() {
     checkUserRole()
   }, [user, router])
 
-  // Fetch data only if user is authorized
+  // Fetch donors when user is authorized or assignedCity changes
   useEffect(() => {
-    if (!user) {
-      return
-    }
-
     const fetchDonors = async () => {
+      if (!user || !userRole) {
+        return;
+      }
+
       // Only fetch if user has proper permissions
-      if (!userRole || (userRole !== 'admin' && userRole !== 'superadmin')) {
+      if (userRole !== 'admin' && userRole !== 'superadmin') {
         return;
       }
       
-      const donorsCollection = collection(db, 'donors')
-      const donorSnapshot = await getDocs(donorsCollection)
-      const donorList = donorSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
-      
-      // Extract unique cities for the filter
-      const cities = [...new Set(donorList.filter(donor => donor.ResidentCity).map(donor => donor.ResidentCity))];
-      setAvailableCities(cities);
-      
-      // Calculate statistics for donors
-      const stats = {
-        byBloodGroup: {},
-        availableDonors: 0,
-        unavailableDonors: 0
-      };
-      
-      // Initialize blood group counters
-      ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].forEach(bg => {
-        stats.byBloodGroup[bg] = {
-          total: 0,
-          available: 0,
-          unavailable: 0
-        };
-      });
-      
-      // Count donors by blood group and availability
-      donorList.forEach(donor => {
-        if (donor.BloodGroup) {
-          // Increment total count for this blood group
-          if (!stats.byBloodGroup[donor.BloodGroup]) {
-            stats.byBloodGroup[donor.BloodGroup] = { total: 0, available: 0, unavailable: 0 };
-          }
-          stats.byBloodGroup[donor.BloodGroup].total++;
-          
-          // Determine if donor is available
-          const lastDonation = donor.LastDonationDate ? new Date(donor.LastDonationDate) : null;
-          const now = new Date();
-          const threeMonthsAgo = new Date();
-          threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-          
-          if (!lastDonation || lastDonation < threeMonthsAgo) {
-            stats.byBloodGroup[donor.BloodGroup].available++;
-            stats.availableDonors++;
-          } else {
-            stats.byBloodGroup[donor.BloodGroup].unavailable++;
-            stats.unavailableDonors++;
-          }
+      try {
+        console.log(`Fetching donors with role: ${userRole}, city: ${assignedCity || 'none'}`);
+        
+        const donorsCollection = collection(db, 'donors');
+        let donorQuery;
+        
+        // Strict filtering for admin users
+        if (userRole === 'admin' && assignedCity) {
+          // Make sure to filter for exact city match
+          donorQuery = query(donorsCollection, where('ResidentCity', '==', assignedCity));
+          console.log(`Filtering donors for city: ${assignedCity}`);
+        } else {
+          // For superadmin, no filtering
+          donorQuery = donorsCollection;
+          console.log('No city filtering (superadmin)');
         }
-      });
-      
-      setDonorStats(stats);
-      setDonors(donorList)
-    }
+        
+        const donorSnapshot = await getDocs(donorQuery);
+        const donorList = donorSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        console.log(`Total donors fetched: ${donorList.length}`);
+        
+        // Calculate statistics for donors
+        const stats = {
+          byBloodGroup: {},
+          availableDonors: 0,
+          unavailableDonors: 0
+        };
+        
+        // Initialize blood group counters
+        ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].forEach(bg => {
+          stats.byBloodGroup[bg] = {
+            total: 0,
+            available: 0,
+            unavailable: 0
+          };
+        });
+        
+        // Count donors by blood group and availability
+        donorList.forEach(donor => {
+          if (donor.BloodGroup) {
+            // Increment total count for this blood group
+            if (!stats.byBloodGroup[donor.BloodGroup]) {
+              stats.byBloodGroup[donor.BloodGroup] = { total: 0, available: 0, unavailable: 0 };
+            }
+            stats.byBloodGroup[donor.BloodGroup].total++;
+            
+            // Determine if donor is available
+            const lastDonation = donor.LastDonationDate ? new Date(donor.LastDonationDate) : null;
+            const now = new Date();
+            const threeMonthsAgo = new Date();
+            threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+            
+            if (!lastDonation || lastDonation < threeMonthsAgo) {
+              stats.byBloodGroup[donor.BloodGroup].available++;
+              stats.availableDonors++;
+            } else {
+              stats.byBloodGroup[donor.BloodGroup].unavailable++;
+              stats.unavailableDonors++;
+            }
+          }
+        });
+        
+        setDonorStats(stats);
+        setDonors(donorList);
+      } catch (error) {
+        console.error("Error fetching donors:", error);
+        toast.error("Failed to load donors");
+      }
+    };
 
-    fetchDonors()
-  }, [user, userRole])
+    fetchDonors();
+  }, [user, userRole, assignedCity, db])
 
   // Separate useEffect for fetching requests based on userRole and assignedCity
   useEffect(() => {
+    if (!user) return;
+    
     if (userRole === 'admin' || userRole === 'superadmin') {
       fetchRequests();
     }
-  }, [userRole, assignedCity]);
+  }, [userRole, assignedCity, fetchRequests]);
 
   // Fetch camps in real time  
   useEffect(() => {
@@ -350,7 +369,6 @@ export default function AdminDashboard() {
     } else if (tab === 'donors') {
       setActiveBloodGroupFilter('all')
       setActiveGenderFilter('all')
-      setActiveCityFilter('all')
       setSearchQuery('') // Reset search query
     }
     setIsSidebarOpen(false)
@@ -382,11 +400,6 @@ export default function AdminDashboard() {
       // Filter by gender (case-insensitive comparison)
       if (activeGenderFilter !== 'all' && 
           (!donor.Gender || donor.Gender.toLowerCase() !== activeGenderFilter.toLowerCase())) {
-        return false;
-      }
-      
-      // Filter by city
-      if (activeCityFilter !== 'all' && donor.ResidentCity !== activeCityFilter) {
         return false;
       }
       
@@ -688,7 +701,6 @@ export default function AdminDashboard() {
                   onClick={() => {
                     setActiveBloodGroupFilter('all');
                     setActiveGenderFilter('all');
-                    setActiveCityFilter('all');
                     setSearchQuery('');
                     setCurrentPage(1);
                   }}
@@ -775,118 +787,7 @@ export default function AdminDashboard() {
                     ))}
                   </div>
                 </div>
-                
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Filter by City</h3>
-                  <Select
-                    value={activeCityFilter}
-                    onValueChange={(value) => {
-                      setActiveCityFilter(value);
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <SelectTrigger className="w-full bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500">
-                      <SelectValue placeholder="Select a city" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Cities</SelectItem>
-                      {[
-                        "Ambur",
-                        "Arakkonam",
-                        "Ariyalur",
-                        "Aruppukkottai",
-                        "Attur",
-                        "Chengalpattu",
-                        "Chennai",
-                        "Coimbatore",
-                        "Cuddalore",
-                        "Cumbum",
-                        "Dharmapuri",
-                        "Dindigul",
-                        "Erode",
-                        "Gudiyatham",
-                        "Hosur",
-                        "Kanchipuram",
-                        "Karaikudi",
-                        "Karur",
-                        "Kanyakumari",
-                        "Kovilpatti",
-                        "Krishnagiri",
-                        "Kumbakonam",
-                        "Madurai",
-                        "Mayiladuthurai",
-                        "Mettupalayam",
-                        "Nagapattinam",
-                        "Namakkal",
-                        "Nagercoil",
-                        "Neyveli",
-                        "Ooty",
-                        "Palani",
-                        "Paramakudi",
-                        "Perambalur",
-                        "Pollachi",
-                        "Pudukottai",
-                        "Rajapalayam",
-                        "Ramanathapuram",
-                        "Ranipet",
-                        "Salem",
-                        "Sivagangai",
-                        "Sivakasi",
-                        "Tenkasi",
-                        "Thanjavur",
-                        "Theni",
-                        "Thoothukudi",
-                        "Tirupattur",
-                        "Tiruchendur",
-                        "Tiruchirappalli",
-                        "Tirunelveli",
-                        "Tiruppur",
-                        "Tiruvallur",
-                        "Tiruvannamalai",
-                        "Tiruvarur",
-                        "Tuticorin",
-                        "Udumalaipettai",
-                        "Valparai",
-                        "Vandavasi",
-                        "Vellore",
-                        "Viluppuram",
-                        "Virudhunagar"
-                      ].map(city => (
-                        <SelectItem key={city} value={city}>{city}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
-              
-              {/* Active filter summary */}
-              {(activeBloodGroupFilter !== 'all' || activeGenderFilter !== 'all' || activeCityFilter !== 'all' || searchQuery) && (
-                <div className="mt-6 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                  <h4 className="font-medium text-blue-800 mb-2">Active Filters:</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {searchQuery && (
-                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                        Search: "{searchQuery}"
-                      </span>
-                    )}
-                    {activeBloodGroupFilter !== 'all' && (
-                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                        Blood Group: {activeBloodGroupFilter}
-                      </span>
-                    )}
-                    {activeGenderFilter !== 'all' && (
-                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                        Gender: {activeGenderFilter}
-                      </span>
-                    )}
-                    {activeCityFilter !== 'all' && (
-                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                        City: {activeCityFilter}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           </>
         )}
@@ -1399,10 +1300,6 @@ export default function AdminDashboard() {
                             <div>
                               <p className="text-sm text-gray-500">Gender</p>
                               <p className="font-medium capitalize">{donation.donorDetails.Gender}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-gray-500">City</p>
-                              <p className="font-medium">{donation.donorDetails.ResidentCity}</p>
                             </div>
                           </>
                         )}
