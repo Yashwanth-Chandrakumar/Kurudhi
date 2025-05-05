@@ -283,6 +283,18 @@ export default function ProfilePage() {
               </div>
 
               <div>
+                <label className={labelClasses}>Date of Birth</label>
+                <Input 
+                  name="DateOfBirth" 
+                  type="date"
+                  value={donorData.DateOfBirth || ''} 
+                  disabled={!isEditing}
+                  onChange={handleChange}
+                  className={inputClasses}
+                />
+              </div>
+
+              <div>
                 <label className={labelClasses}>Email</label>
                 <Input 
                   name="Email" 

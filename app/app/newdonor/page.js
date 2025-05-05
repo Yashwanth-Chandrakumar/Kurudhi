@@ -135,7 +135,8 @@ export default function BecomeDonor() {
     permanentCity: '',
     residentCity: '',
     sameAsPermenant: false,
-    acceptTerms: false
+    acceptTerms: false,
+    dateOfBirth: '',
   });
 
   // If the user is logged in, set the email in the form data.
@@ -186,6 +187,12 @@ export default function BecomeDonor() {
         } else {
           const error = validateField('age', formData.age);
           if (error) newErrors.age = error;
+        }
+        if (!formData.dateOfBirth) {
+          newErrors.dateOfBirth = 'Date of Birth is required';
+        } else {
+          const error = validateField('dateOfBirth', formData.dateOfBirth);
+          if (error) newErrors.dateOfBirth = error;
         }
         if (!formData.gender) newErrors.gender = 'Please select gender';
         if (!formData.bloodGroup) newErrors.bloodGroup = 'Please select blood group';
@@ -239,6 +246,17 @@ export default function BecomeDonor() {
         return !value 
           ? 'Age is required'
           : value < 18 || value > 65 
+          ? 'Age must be between 18 and 65'
+          : '';
+      case 'dateOfBirth':
+        if (!value) return 'Date of Birth is required';
+        const dobDate = new Date(value);
+        const today = new Date();
+        const age = today.getFullYear() - dobDate.getFullYear();
+        const isBeforeBirthday = today.getMonth() < dobDate.getMonth() || 
+                               (today.getMonth() === dobDate.getMonth() && today.getDate() < dobDate.getDate());
+        const calculatedAge = isBeforeBirthday ? age - 1 : age;
+        return calculatedAge < 18 || calculatedAge > 65 
           ? 'Age must be between 18 and 65'
           : '';
       case 'email':
@@ -320,6 +338,7 @@ export default function BecomeDonor() {
         ResidentCity: formData.residentCity || formData.permanentCity,
         State: formData.state,
         WhatsappNumber: formData.whatsapp,
+        DateOfBirth: formData.dateOfBirth,
         registeredAt: new Date().toISOString()
       };
       await addDoc(collection(db, 'donors'), donorData);
@@ -395,6 +414,21 @@ export default function BecomeDonor() {
                         {renderFieldError(field)}
                       </div>
                     ))}
+                    
+                    <div>
+                      <Label className="text-red-700">Date of Birth</Label>
+                      <Input
+                        name="dateOfBirth"
+                        type="date"
+                        value={formData.dateOfBirth}
+                        onChange={handleChange}
+                        className={`border-red-200 focus:ring-red-500 ${
+                          errors.dateOfBirth ? 'border-red-500' : ''
+                        }`}
+                      />
+                      {renderFieldError('dateOfBirth')}
+                    </div>
+                    
                     {['gender', 'bloodGroup'].map(field => (
                       <div key={field}>
                         <Label className="text-red-700">
@@ -557,6 +591,8 @@ export default function BecomeDonor() {
                           <div className="text-red-900">{formData.name}</div>
                           <div className="text-red-600">Age:</div>
                           <div className="text-red-900">{formData.age}</div>
+                          <div className="text-red-600">Date of Birth:</div>
+                          <div className="text-red-900">{formData.dateOfBirth}</div>
                           <div className="text-red-600">Blood Group:</div>
                           <div className="text-red-900">{formData.bloodGroup}</div>
                           <div className="text-red-600">Gender:</div>
