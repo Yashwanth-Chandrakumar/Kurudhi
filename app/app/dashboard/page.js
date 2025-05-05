@@ -157,23 +157,24 @@ export default function DashboardPage() {
       const requestsData = [];
       let activeRequestsCount = 0;
       let myBloodTypeRequestsCount = 0;
-      let completed = 0;
+      let completedUserRequests = 0;
       let totalActiveUnits = 0;
 
       querySnapshot.forEach((doc) => {
         const data = { id: doc.id, ...doc.data() };
         requestsData.push(data);
         
-        // Update stats
-        if (data.Verified === "completed") {
-          completed++;
+        // Update stats - only count completed if user participated
+        if (data.Verified === "completed" && userDonations.includes(doc.id)) {
+          completedUserRequests++;
         } else if (data.Verified === "accepted") {
+          // Count active requests for all users
           activeRequestsCount++;
-          totalActiveUnits += parseInt(data.UnitsNeeded) || 0;
           
-          // Count requests matching donor's blood type
-          if (donorRecord && data.BloodGroup === donorRecord.BloodGroup) {
+          // Only count units needed for eligible requests (matching blood type or accepts any)
+          if (donorRecord && (data.BloodGroup === donorRecord.BloodGroup || data.AnyBloodGroupAccepted === true)) {
             myBloodTypeRequestsCount++;
+            totalActiveUnits += parseInt(data.UnitsNeeded) || 0;
           }
         }
       });
@@ -182,7 +183,7 @@ export default function DashboardPage() {
       setStats({
         totalRequests: activeRequestsCount,
         pendingRequests: myBloodTypeRequestsCount,
-        completedRequests: completed,
+        completedRequests: completedUserRequests,
         unitsNeeded: totalActiveUnits
       });
       
@@ -190,7 +191,7 @@ export default function DashboardPage() {
     });
 
     return () => unsubscribe();
-  }, [donorRecord]);
+  }, [donorRecord, userDonations]);
 
   const getStatusColor = (status) => {
     switch(status) {
@@ -700,7 +701,7 @@ export default function DashboardPage() {
             </div>
             <div className="stagger-item animate-staggered">
               <StatCard 
-                title="My Blood Type" 
+                title="Eligible For Me" 
                 value={stats.pendingRequests} 
                 icon={Clock} 
                 color="border-yellow-500" 
@@ -708,7 +709,7 @@ export default function DashboardPage() {
             </div>
             <div className="stagger-item animate-staggered">
               <StatCard 
-                title="Completed" 
+                title="My Completed Donations" 
                 value={stats.completedRequests} 
                 icon={Check} 
                 color="border-green-500" 
@@ -716,7 +717,7 @@ export default function DashboardPage() {
             </div>
             <div className="stagger-item animate-staggered">
               <StatCard 
-                title="Active Units Needed" 
+                title="Units Needed (Eligible)" 
                 value={stats.unitsNeeded} 
                 icon={Droplet} 
                 color="border-red-500" 
