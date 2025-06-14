@@ -14,7 +14,8 @@ import {
     query,
     updateDoc,
     where,
-    deleteDoc
+    deleteDoc,
+    increment
 } from 'firebase/firestore';
 import html2canvas from 'html2canvas';
 import {
@@ -360,32 +361,26 @@ export default function DashboardPage() {
           donorOtpVerified: true
         });
         
-        // Update request's donated units
+        // Atomically increment the donated units
         const requestRef = doc(db, "requests", request.id);
-        const requestDoc = await getDoc(requestRef);
-        if (requestDoc.exists()) {
-          const currentDonated = parseInt(requestDoc.data().UnitsDonated || 0);
-          const newUnitsDonated = currentDonated + 1;
+        await updateDoc(requestRef, {
+          UnitsDonated: increment(1)
+        });
           
-          await updateDoc(requestRef, {
-            UnitsDonated: newUnitsDonated
+        // Update donor's last donation date
+        const donorQuery = query(collection(db, "donors"), where("Email", "==", user.email));
+        const donorSnapshot = await getDocs(donorQuery);
+        if (!donorSnapshot.empty) {
+          const donorRef = doc(db, "donors", donorSnapshot.docs[0].id);
+          await updateDoc(donorRef, {
+            lastDonationDate: new Date().toISOString().split('T')[0]
           });
-          
-          // Update donor's last donation date
-          const donorQuery = query(collection(db, "donors"), where("Email", "==", user.email));
-            const donorSnapshot = await getDocs(donorQuery);
-            if (!donorSnapshot.empty) {
-            const donorRef = doc(db, "donors", donorSnapshot.docs[0].id);
-            await updateDoc(donorRef, {
-              lastDonationDate: new Date().toISOString().split('T')[0]
-            });
-          }
-          
-          // Check if donation is complete and update tab if needed
-          const newStatus = await checkDonationCompletion(request.id);
-          if (newStatus === 'completed') {
-            setActiveTab('completed');
-          }
+        }
+        
+        // Check if donation is complete and update tab if needed
+        const newStatus = await checkDonationCompletion(request.id);
+        if (newStatus === 'completed') {
+          setActiveTab('completed');
         }
         
         // Update local state
