@@ -218,18 +218,18 @@ export default function DashboardPage() {
         const unitsNeeded = parseInt(requestData.UnitsNeeded);
         const unitsDonated = parseInt(requestData.UnitsDonated || 0);
         
-        if (unitsDonated >= unitsNeeded) {
-          console.log("Request " + requestId + " marked as completed: " + unitsDonated + "/" + unitsNeeded + " units donated");
+        if (unitsDonated >= unitsNeeded && requestData.Verified !== 'completed') {
           await updateDoc(requestRef, {
             Verified: "completed"
           });
-          return true;
+          return "completed";
         }
+        return requestData.Verified;
       }
-      return false;
+      return null;
     } catch (error) {
       console.error("Error checking donation completion:", error);
-      return false;
+      return null;
     }
   };
 
@@ -270,27 +270,25 @@ export default function DashboardPage() {
       refreshDonationStatus();
     }, [donorRecord, donation]);
 
-    // Add useEffect to fetch existing donation when component loads
+    // Add useEffect to fetch existing donation with real-time updates
     useEffect(() => {
-      const fetchExistingDonation = async () => {
-        if (!user || !request.id) return;
-        
-        try {
-          const donationsRef = collection(db, "requests", request.id, "donations");
-          const q = query(donationsRef, where("donorId", "==", user.uid));
-          const querySnapshot = await getDocs(q);
-          
-          if (!querySnapshot.empty) {
-            // Found an existing donation by this user for this request
-            const donationDoc = querySnapshot.docs[0];
-            setDonation({ id: donationDoc.id, ...donationDoc.data() });
-          }
-        } catch (error) {
-          console.error("Error fetching existing donation:", error);
+      if (!user || !request.id) return;
+
+      const donationsRef = collection(db, "requests", request.id, "donations");
+      const q = query(donationsRef, where("donorId", "==", user.uid));
+
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        if (!querySnapshot.empty) {
+          const donationDoc = querySnapshot.docs[0];
+          setDonation({ id: donationDoc.id, ...donationDoc.data() });
+        } else {
+          setDonation(null);
         }
-      };
-      
-      fetchExistingDonation();
+      }, (error) => {
+        console.error("Error fetching existing donation:", error);
+      });
+
+      return () => unsubscribe();
     }, [user, request.id]);
 
     const canDonate = () => {
@@ -383,8 +381,11 @@ export default function DashboardPage() {
             });
           }
           
-          // Check if donation is complete - ensures this is called after updating UnitsDonated
-          await checkDonationCompletion(request.id);
+          // Check if donation is complete and update tab if needed
+          const newStatus = await checkDonationCompletion(request.id);
+          if (newStatus === 'completed') {
+            setActiveTab('completed');
+          }
         }
         
         // Update local state
@@ -536,13 +537,23 @@ export default function DashboardPage() {
           {/* Donation button/UI outside expandable section */}
         {donation ? (
           donation.donorOtpVerified ? (
-              <div className="mt-4 p-4 bg-green-50 border border-green-100 rounded-lg">
-                <div className="flex items-center text-green-800 font-bold">
-                  <Check className="w-5 h-5 mr-2" />
-                  Donation completed
+            donation.requesterOtpVerified ? (
+                <div className="mt-4 p-4 bg-green-50 border border-green-100 rounded-lg">
+                  <div className="flex items-center text-green-800 font-bold">
+                    <Check className="w-5 h-5 mr-2" />
+                    Donation completed
+                  </div>
+                  <p className="text-green-700 text-sm mt-1">Thank you for your donation! Your OTP: <strong>{donation.donorOtp}</strong></p>
+              </div>
+            ) : (
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                <div className="flex items-center text-blue-800 font-bold">
+                  <Clock className="w-5 h-5 mr-2 animate-spin" />
+                  Waiting for confirmation
                 </div>
-                <p className="text-green-700 text-sm mt-1">Thank you for your donation! Your OTP: <strong>{donation.donorOtp}</strong></p>
-            </div>
+                <p className="text-blue-700 text-sm mt-1">The requester needs to verify your donation. Your OTP: <strong>{donation.donorOtp}</strong></p>
+              </div>
+            )
           ) : (
               <div className="mt-4 p-4 bg-yellow-50 border border-yellow-100 rounded-lg">
                 <div className="flex items-center text-yellow-800 font-medium mb-3">
