@@ -13,7 +13,8 @@ import {
     onSnapshot,
     query,
     updateDoc,
-    where
+    where,
+    deleteDoc
 } from 'firebase/firestore';
 import html2canvas from 'html2canvas';
 import {
@@ -332,6 +333,18 @@ export default function DashboardPage() {
       }
     };
 
+    const handleCancelClick = async () => {
+      if (!donation) return;
+      try {
+        await deleteDoc(doc(db, "requests", request.id, "donations", donation.id));
+        setDonation(null);
+        setEnteredOtp('');
+      } catch (error) {
+        console.error("Error cancelling donation:", error);
+        alert("Failed to cancel donation. Please try again.");
+      }
+    };
+
     const handleVerifyRequesterOtp = async () => {
       if (!donation || enteredOtp !== donation.requesterOtp) {
         alert("Invalid OTP. Please try again.");
@@ -564,12 +577,20 @@ export default function DashboardPage() {
                       onChange={setEnteredOtp}
                       inputClassName="w-10 h-10 text-center border border-yellow-200 rounded-lg bg-white text-gray-700 shadow-sm focus:border-yellow-500 focus:ring focus:ring-yellow-200 focus:ring-opacity-50"
                     />
-                    <Button
-                      onClick={handleVerifyRequesterOtp}
-                      className="mt-4 w-full bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg font-medium transition-colors"
-                    >
-                      Verify OTP
-                    </Button>
+                    <div className="mt-4 flex gap-2">
+                      <Button
+                        onClick={handleVerifyRequesterOtp}
+                        className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg font-medium transition-colors"
+                      >
+                        Verify OTP
+                      </Button>
+                      <Button
+                        onClick={handleCancelClick}
+                        className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg font-medium transition-colors"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
                   </>
                 )}
             </div>
