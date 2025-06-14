@@ -17,7 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import Navbar from '@/components/Navbar';
-import { Info } from 'lucide-react';
+
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -168,9 +168,9 @@ export default function MyRequestsPage() {
             </p>
             <Button 
               onClick={() => setShowMoreModal(true)} 
-              className="bg-red-600 text-white p-2 rounded-full hover:bg-red-700 transition-colors"
+              className="px-4 py-1 text-sm border border-red-600 text-red-600 hover:bg-red-600 hover:text-white rounded-full transition-colors"
             >
-              <Info className="w-5 h-5" />
+              More
             </Button>
           </div>
           <p className="mt-2 text-gray-600 text-sm"><strong>Your OTP:</strong> {donation.requesterOtp}</p>
