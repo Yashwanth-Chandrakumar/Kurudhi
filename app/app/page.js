@@ -86,7 +86,7 @@ export default function Home() {
 
       <main className="flex-grow">
         {/* Hero Section */}
-        <section className="relative flex items-center justify-center bg-red-800">
+        <section className="relative flex items-center justify-center bg-red-800 h-screen">
           <div className="absolute inset-0">
             {/* Background image can be enabled if desired */}
             {/* <img 
@@ -96,7 +96,7 @@ export default function Home() {
             /> */}
             <div className="absolute inset-0 bg-red-900 opacity-60"></div>
           </div>
-          <div className="relative z-10 container mx-auto px-4 py-20 flex flex-col md:flex-row items-center justify-between">
+          <div className="relative z-10 container mx-auto px-4 flex flex-col md:flex-row items-center justify-between">
             <div className="md:w-1/2 text-center md:text-left">
               <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 animate-slide-in">
                 Every Drop <br /> of Blood <span className="text-red-300">Counts</span>
