@@ -831,21 +831,21 @@ export default function SuperAdminDashboard() {
                       <td className="px-6 py-4">{request.PatientName}</td>
                       <td className="px-6 py-4">{request.BloodGroup}</td>
                       <td className="px-6 py-4">{request.Hospital}</td>
-                      <td className="px-6 py-4 space-x-2">
-                        {request.Verified === "received" && (
-                          <>
-                            <Button onClick={() => handleConfirmAction(request.id, 'accepted')} className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition">
-                              Accept
-                            </Button>
-                            <Button onClick={() => handleConfirmAction(request.id, 'rejected')} className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition">
-                              Reject
-                            </Button>
-                          </>
-                        )}
-                        <Button onClick={() => openDetailsModal(request, 'request')} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition">
-                          More
-                        </Button>
-                        <div className="text-right">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center space-x-2">
+                          {request.Verified === "received" && (
+                            <>
+                              <Button onClick={() => handleConfirmAction(request.id, 'accepted')} className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition">
+                                Accept
+                              </Button>
+                              <Button onClick={() => handleConfirmAction(request.id, 'rejected')} className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition">
+                                Reject
+                              </Button>
+                            </>
+                          )}
+                          <Button onClick={() => openDetailsModal(request, 'request')} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition">
+                            More
+                          </Button>
                           {/* Show View Donors button only for accepted or completed requests */}
                           {(request.Verified === "accepted" || request.Verified === "completed") && (
                             <Button 
