@@ -1,8 +1,26 @@
 "use client"
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Heart, Users, Target, Award, CheckCircle, Calendar } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
+import { getApp, getApps, initializeApp } from 'firebase/app';
+
+// Firebase configuration
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+};
+
+// Initialize Firebase
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const db = getFirestore(app);
 
 const TeamMember = ({ name, role, image }) => (
   <div className="bg-white rounded-2xl shadow-2xl overflow-hidden transform hover:-translate-y-2 transition-transform duration-300">
@@ -26,6 +44,28 @@ const ValueCard = ({ icon: Icon, title, description }) => (
 
 export default function About() {
   const router = useRouter();
+  const { user } = useAuth();
+  const [isDonor, setIsDonor] = useState(false);
+
+  useEffect(() => {
+    const checkIfDonor = async () => {
+      if (user && user.email) {
+        try {
+          const q = query(collection(db, "donors"), where("Email", "==", user.email));
+          const snapshot = await getDocs(q);
+          setIsDonor(!snapshot.empty);
+        } catch (error) {
+          console.error("Error checking donor status:", error);
+          setIsDonor(false);
+        }
+      } else {
+        setIsDonor(false);
+      }
+    };
+
+    checkIfDonor();
+  }, [user]);
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Navbar />
@@ -154,9 +194,15 @@ export default function About() {
             Be a hero in your community. Donate blood, save lives, and inspire change with Kurudhi Kodai.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <button className="bg-white text-red-700 px-10 py-4 rounded-full font-bold hover:bg-gray-100 transition-all" onClick={() => router.push("/newdonor")}>
-              Become a Donor
-            </button>
+            {isDonor ? (
+              <button className="bg-white text-red-700 px-10 py-4 rounded-full font-bold hover:bg-gray-100 transition-all" onClick={() => router.push("/dashboard")}>
+                Donate Now
+              </button>
+            ) : (
+              <button className="bg-white text-red-700 px-10 py-4 rounded-full font-bold hover:bg-gray-100 transition-all" onClick={() => router.push("/newdonor")}>
+                Become a Donor
+              </button>
+            )}
           </div>
         </div>
       </section>

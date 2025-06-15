@@ -131,16 +131,19 @@ export default function DashboardPage() {
         
         let userDonationsList = [];
         
-        // For each request, check if user has a donation
-        for (const doc of requestsSnapshot.docs) {
-          const requestId = doc.id;
+        // For each request, check for user's donations
+        for (const requestDoc of requestsSnapshot.docs) {
+          const requestId = requestDoc.id;
           const donationsRef = collection(db, "requests", requestId, "donations");
           const userDonationsQuery = query(donationsRef, where("donorId", "==", user.uid));
           const userDonationsSnapshot = await getDocs(userDonationsQuery);
           
-          if (!userDonationsSnapshot.empty) {
-            userDonationsList.push(requestId);
-          }
+          userDonationsSnapshot.forEach(donationDoc => {
+            userDonationsList.push({ 
+              requestId: requestId,
+              ...donationDoc.data() 
+            });
+          });
         }
         
         setUserDonations(userDonationsList);
@@ -159,17 +162,13 @@ export default function DashboardPage() {
       const requestsData = [];
       let activeRequestsCount = 0;
       let myBloodTypeRequestsCount = 0;
-      let completedUserRequests = 0;
       let totalActiveUnits = 0;
 
       querySnapshot.forEach((doc) => {
         const data = { id: doc.id, ...doc.data() };
         requestsData.push(data);
         
-        // Update stats - only count completed if user participated
-        if (data.Verified === "completed" && userDonations.includes(doc.id)) {
-          completedUserRequests++;
-        } else if (data.Verified === "accepted") {
+        if (data.Verified === "accepted") {
           // Count active requests for all users
           activeRequestsCount++;
           
@@ -180,6 +179,9 @@ export default function DashboardPage() {
           }
         }
       });
+
+      // Calculate completed requests based on user's verified donations
+      const completedUserRequests = userDonations.filter(d => d.requesterOtpVerified === true).length;
       
       setRequests(requestsData);
       setStats({
@@ -239,8 +241,11 @@ export default function DashboardPage() {
     if (activeTab === 'active') {
       return request.Verified === 'accepted';
     } else if (activeTab === 'completed') {
-      // Only show completed requests that the user has participated in
-      return request.Verified === 'completed' && userDonations.includes(request.id);
+      // Show requests where the user has a completed (requester verified) donation
+      const completedDonationRequestIds = userDonations
+        .filter(donation => donation.requesterOtpVerified === true)
+        .map(donation => donation.requestId);
+      return completedDonationRequestIds.includes(request.id);
     } else if (activeTab === 'mytype' && donorRecord) {
       // Return requests matching user's blood group OR requests that accept any blood group
       return (request.BloodGroup === donorRecord.BloodGroup || request.AnyBloodGroupAccepted === true) && request.Verified === 'accepted';
