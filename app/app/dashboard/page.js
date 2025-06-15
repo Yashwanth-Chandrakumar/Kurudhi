@@ -1,6 +1,7 @@
 "use client";
 import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import {
@@ -253,12 +254,13 @@ export default function DashboardPage() {
     return true;
   });
 
-  // Donor Request Card Component
   function DonorRequestCard({ request, donorRecord }) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [donation, setDonation] = useState(null);
     const [enteredOtp, setEnteredOtp] = useState('');
     const [isCopied, setIsCopied] = useState(false);
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [cancelReason, setCancelReason] = useState('');
     const shareUrlRef = useRef(null);
     const cardRef = useRef(null);
 
@@ -337,14 +339,36 @@ export default function DashboardPage() {
       }
     };
 
-    const handleCancelClick = async () => {
-      if (!donation) return;
+    const handleCancelClick = () => {
+      setShowCancelModal(true);
+    };
+
+    const handleConfirmCancel = async () => {
+      if (!donation || !cancelReason.trim()) {
+        alert("Please provide a reason for cancellation.");
+        return;
+      }
       try {
+        // Add cancellation reason to a new subcollection
+        const cancellationData = {
+          donorId: user.uid,
+          donorEmail: user.email,
+          donorName: donorRecord.Name,
+          reason: cancelReason,
+          timestamp: new Date(),
+        };
+        await addDoc(collection(db, "requests", request.id, "cancellations"), cancellationData);
+
+        // Delete the original donation document
         await deleteDoc(doc(db, "requests", request.id, "donations", donation.id));
+
+        // Reset state
         setDonation(null);
         setEnteredOtp('');
+        setShowCancelModal(false);
+        setCancelReason('');
       } catch (error) {
-        console.error("Error cancelling donation:", error);
+        console.error("Error confirming cancellation:", error);
         alert("Failed to cancel donation. Please try again.");
       }
     };
@@ -401,85 +425,160 @@ export default function DashboardPage() {
       if (!cardRef.current) return;
       
       try {
-        const canvas = await html2canvas(cardRef.current);
-        const imageUrl = canvas.toDataURL();
+        // Temporarily hide buttons to not include them in the screenshot
+        const buttons = cardRef.current.querySelectorAll('button');
+        buttons.forEach(btn => btn.style.visibility = 'hidden');
         
-        // Create share data
-        const shareData = {
-          title: 'Blood Donation Request',
-          text: `Urgent blood donation needed!\nPatient: ${request.PatientName}\nBlood Group: ${request.BloodGroup}\nHospital: ${request.Hospital}\nCity: ${request.City}\n\nPlease help if you can!`,
-          url: window.location.href
-        };
+        const canvas = await html2canvas(cardRef.current, {
+          scale: 2, // Higher scale for better quality
+          useCORS: true, // If you have images from other domains
+          backgroundColor: '#ffffff',
+        });
+        
+        // Restore buttons visibility
+        buttons.forEach(btn => btn.style.visibility = 'visible');
 
-        // Check if Web Share API is supported
-        if (navigator.share) {
-          try {
-            await navigator.share(shareData);
-          } catch (err) {
-            console.log('Error sharing:', err);
-          }
+        const dataUrl = canvas.toDataURL('image/png');
+        const blob = await (await fetch(dataUrl)).blob();
+        const filesArray = [new File([blob], 'donation-request.png', { type: 'image/png' })];
+        
+        if (navigator.canShare && navigator.canShare({ files: filesArray })) {
+          await navigator.share({
+            files: filesArray,
+            title: 'Blood Donation Request',
+            text: `Please help ${request.PatientName} who needs ${request.BloodGroup} blood at ${request.Hospital}, ${request.City}.`,
+          });
         } else {
-          // Fallback for WhatsApp sharing
-          const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareData.text + '\n' + shareData.url)}`;
-          window.open(whatsappUrl, '_blank');
+          // Fallback for browsers that don't support sharing files
+          const shareUrl = `https://kurudhi.vercel.app/request/${request.id}`;
+          await navigator.share({
+            title: 'Blood Donation Request',
+            text: `Please help ${request.PatientName} who needs ${request.BloodGroup} blood at ${request.Hospital}, ${request.City}.`,
+            url: shareUrl
+          });
         }
-      } catch (err) {
-        console.error('Error generating image:', err);
+      } catch (error) {
+        console.error('Error sharing:', error);
+        alert('Could not share the request. Please try again.');
       }
     };
 
-    const getStatusDisplay = (status, unitsNeeded, unitsDonated) => {
-      if (status === 'completed') return 'Completed';
-      const pending = unitsNeeded - (unitsDonated || 0);
-      return `Pending (${pending} units needed)`;
+    const renderContent = () => {
+      if (donation) {
+        if (donation.requesterOtpVerified) {
+          return (
+            <div className="p-4 bg-green-50 border-t border-green-200">
+              <div className="flex items-center font-bold text-green-800">
+                <Check className="w-5 h-5 mr-2" />
+                <span>Donation Completed!</span>
+              </div>
+              <p className="text-sm text-green-700 mt-2">
+                Thank you for your life-saving contribution. Your donation has been successfully verified by the requester.
+              </p>
+            </div>
+          );
+        } else if (donation.donorOtpVerified) {
+          return (
+            <div className="p-4 bg-blue-50 border-t border-blue-200">
+              <div className="flex items-center font-bold text-blue-800">
+                <Clock className="w-5 h-5 mr-2 animate-spin" />
+                <span>Awaiting Requester Confirmation</span>
+              </div>
+              <p className="text-sm text-blue-700 mt-2">
+                Your part is done! Please ensure the requester confirms the donation with their OTP. Your OTP was: <strong>{donation.donorOtp}</strong>
+              </p>
+            </div>
+          );
+        } else {
+          return (
+            <div className="p-4 bg-yellow-50 border-t border-yellow-200">
+              <div className="flex items-center font-bold text-yellow-800 mb-3">
+                <AlertCircle className="w-5 h-5 mr-2" />
+                <span>Action Required: Verify Donation</span>
+              </div>
+              {!canDonate() ? (
+                <p className="text-sm text-red-600 font-medium">You cannot complete this donation as you have donated within the last 90 days.</p>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-600 mb-3">
+                    To complete the donation, please enter the 6-digit OTP provided by the requester.
+                  </p>
+                  <OtpInput 
+                    onChange={setEnteredOtp}
+                    inputClassName="w-10 h-10 text-center border border-yellow-300 rounded-lg bg-white text-gray-800 shadow-sm focus:border-yellow-500 focus:ring focus:ring-yellow-200 focus:ring-opacity-50"
+                  />
+                  <div className="mt-4 flex gap-3">
+                    <Button onClick={handleVerifyRequesterOtp} className="w-full">Verify OTP</Button>
+                    <Button variant="outline" onClick={handleCancelClick} className="w-full">Cancel</Button>
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        }
+      } else if (donorRecord && (donorRecord.BloodGroup === request.BloodGroup || request.AnyBloodGroupAccepted)) {
+        return (
+          <div className="p-4 bg-gray-50 border-t">
+            <Button 
+              onClick={handleDonateClick} 
+              disabled={!canDonate() || request.Verified === 'completed'}
+              className={`w-full font-bold py-3 transition-all ${!canDonate() || request.Verified === 'completed' ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 text-white'}`}>
+              {request.Verified === 'completed' ? 'Request Fulfilled' : canDonate() ? 'I want to Donate' : 'Cannot Donate (90-day cooldown)'}
+            </Button>
+          </div>
+        );
+      } else {
+        return (
+          <div className="p-4 bg-gray-100 border-t text-center">
+            <p className="text-sm text-gray-600">This request is not for your blood type.</p>
+          </div>
+        );
+      }
     };
+    
+    const renderCancelModal = () => {
+      if (!showCancelModal) return null;
 
-    const toggleExpanded = () => {
-      setIsExpanded(!isExpanded);
-      setExpandedCard(isExpanded ? null : request.id);
-    };
-
-    // Blood group badge color based on type
-    const getBloodGroupColor = (bloodGroup) => {
-      const colors = {
-        'A+': 'bg-red-100 text-red-800',
-        'A-': 'bg-red-200 text-red-900',
-        'B+': 'bg-blue-100 text-blue-800',
-        'B-': 'bg-blue-200 text-blue-900',
-        'AB+': 'bg-purple-100 text-purple-800',
-        'AB-': 'bg-purple-200 text-purple-900',
-        'O+': 'bg-green-100 text-green-800',
-        'O-': 'bg-green-200 text-green-900',
-      };
-      return colors[bloodGroup] || 'bg-gray-100 text-gray-800';
+      return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md transform transition-all">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Cancel Donation</h3>
+            <p className="text-gray-600 mb-5">Please provide a reason for cancelling your donation pledge. This helps us improve our system.</p>
+            <textarea
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition"
+              rows="4"
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Enter your reason here..."
+            ></textarea>
+            <div className="flex justify-end gap-4 mt-5">
+              <Button variant="outline" onClick={() => setShowCancelModal(false)}>Close</Button>
+              <Button onClick={handleConfirmCancel} disabled={!cancelReason.trim()}>Submit</Button>
+            </div>
+          </div>
+        </div>
+      );
     };
 
     return (
       <div
         ref={cardRef}
-        className={`bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 transition-all duration-300 ${
-          isExpanded ? 'shadow-xl transform scale-[1.02] animate-pulse-shadow' : 'hover:shadow-lg'
-        }`}
+        className={`bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 ${isExpanded ? 'shadow-lg' : ''}`}
       >
-        <div className="p-5">
+        <div className="p-4 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
           <div className="flex justify-between items-start">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-gray-800">{request.PatientName}</h2>
-                <span className={`${getBloodGroupColor(request.BloodGroup)} px-2 py-1 rounded-full text-xs font-bold`}>
-                  {request.BloodGroup}
+            <div className="flex-grow">
+              <div className="flex items-center mb-1">
+                <span className="font-bold text-lg text-gray-800 mr-2">{request.PatientName}</span>
+                <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                  request.EmergencyLevel === 'high' ? 'bg-red-100 text-red-800' :
+                  request.EmergencyLevel === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                  'bg-green-100 text-green-800'
+                }`}>
+                  {request.EmergencyLevel === 'high' ? 'High Emergency' :
+                   request.EmergencyLevel === 'medium' ? 'Medium Emergency' :
+                   'Low Emergency'}
                 </span>
-                {request.EmergencyLevel && (
-                  <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                    request.EmergencyLevel === 'high' ? 'bg-red-100 text-red-800 border border-red-300' :
-                    request.EmergencyLevel === 'medium' ? 'bg-orange-100 text-orange-800 border border-orange-300' :
-                    'bg-yellow-100 text-yellow-800 border border-yellow-300'
-                  }`}>
-                    {request.EmergencyLevel === 'high' ? 'High Emergency' :
-                     request.EmergencyLevel === 'medium' ? 'Medium Emergency' :
-                     'Low Emergency'}
-                  </span>
-                )}
               </div>
               <div className="flex items-center mt-1 text-gray-500 text-sm">
                 <Hospital className="w-4 h-4 mr-1" /> {request.Hospital}
@@ -489,183 +588,70 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-center gap-2">
               <button 
-                onClick={handleShare}
+                onClick={(e) => { e.stopPropagation(); handleShare(); }}
                 className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
                 title="Share Request"
               >
                 <Share2 className="w-5 h-5" />
               </button>
-              <button 
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
-                title={isExpanded ? "Collapse" : "Expand"}
-              >
-                {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-              </button>
+              <ChevronDown className={`w-6 h-6 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
             </div>
           </div>
-          
-          <div className="mt-3 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex flex-col items-center">
-                <div className="text-xs text-gray-500">Needed</div>
-                <div className="font-bold text-gray-800 flex items-center">
-                  <Droplet className="w-4 h-4 mr-1 text-red-500" />
-                  {request.UnitsNeeded}
-                </div>
-              </div>
-              <div className="flex flex-col items-center">
-                <div className="text-xs text-gray-500">Donated</div>
-                <div className="font-bold text-gray-800 flex items-center">
-                  <Activity className="w-4 h-4 mr-1 text-green-500" />
-                  {request.UnitsDonated || 0}
-                </div>
-              </div>
-              <div className="flex flex-col items-center">
-                <div className="text-xs text-gray-500">Status</div>
-                <div className={`${getStatusColor(request.Verified)} px-3 py-1 rounded-full text-xs font-bold`}>
-                  {request.Verified === 'completed' ? (
-                    <span className="flex items-center"><Check className="w-3 h-3 mr-1" /> Complete</span>
-                  ) : (
-                    <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> Pending</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Donation button/UI outside expandable section */}
-        {donation ? (
-          donation.donorOtpVerified ? (
-            donation.requesterOtpVerified ? (
-                <div className="mt-4 p-4 bg-green-50 border border-green-100 rounded-lg">
-                  <div className="flex items-center text-green-800 font-bold">
-                    <Check className="w-5 h-5 mr-2" />
-                    Donation completed
-                  </div>
-                  <p className="text-green-700 text-sm mt-1">Thank you for your donation! Your OTP: <strong>{donation.donorOtp}</strong></p>
-              </div>
-            ) : (
-              <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-lg">
-                <div className="flex items-center text-blue-800 font-bold">
-                  <Clock className="w-5 h-5 mr-2 animate-spin" />
-                  Waiting for confirmation
-                </div>
-                <p className="text-blue-700 text-sm mt-1">The requester needs to verify your donation. Your OTP: <strong>{donation.donorOtp}</strong></p>
-              </div>
-            )
-          ) : (
-              <div className="mt-4 p-4 bg-yellow-50 border border-yellow-100 rounded-lg">
-                <div className="flex items-center text-yellow-800 font-medium mb-3">
-                  <AlertCircle className="w-5 h-5 mr-2" />
-                  {!canDonate() ? (
-                    <span>You cannot donate now. Wait 90 days since your last donation.</span>
-                  ) : (
-                    <span>Verify the requester's OTP to complete donation</span>
-                  )}
-                </div>
-                
-                {/* Attender Information */}
-                <div className="mb-4 p-3 bg-white rounded-lg border border-yellow-200">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Attender Information</h4>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <p className="text-gray-500">Name:</p>
-                      <p className="font-medium">{request.AttenderName || 'Not provided'}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500">Contact:</p>
-                      <p className="font-medium">{request.AttenderMobile || 'Not provided'}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <p className="text-yellow-700 mb-3">Your OTP: <strong>{donation.donorOtp}</strong></p>
-                
-                {canDonate() && (
-                  <>
-                    <OtpInput 
-                      onChange={setEnteredOtp}
-                      inputClassName="w-10 h-10 text-center border border-yellow-200 rounded-lg bg-white text-gray-700 shadow-sm focus:border-yellow-500 focus:ring focus:ring-yellow-200 focus:ring-opacity-50"
-                    />
-                    <div className="mt-4 flex gap-2">
-                      <Button
-                        onClick={handleVerifyRequesterOtp}
-                        className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg font-medium transition-colors"
-                      >
-                        Verify OTP
-                      </Button>
-                      <Button
-                        onClick={handleCancelClick}
-                        className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg font-medium transition-colors"
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </>
-                )}
-            </div>
-          )
-        ) : (
-          donorRecord && (donorRecord.BloodGroup === request.BloodGroup || request.AnyBloodGroupAccepted === true) ? (
-            <Button 
-              onClick={handleDonateClick} 
-                disabled={!canDonate() || request.Verified === 'completed'}
-                className={`mt-4 w-full py-2 rounded-lg font-medium transition-all ${
-                  canDonate() && request.Verified !== 'completed'
-                    ? 'bg-red-600 hover:bg-red-700 text-white'
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                {request.Verified === 'completed' 
-                  ? 'Donation Complete' 
-                  : !canDonate() 
-                    ? 'Cannot Donate (Wait 90 Days)' 
-                    : 'Donate Blood'}
-            </Button>
-          ) : (
-              <div className="mt-4 p-3 bg-gray-50 border border-gray-100 rounded-lg text-center text-sm text-gray-500">
-                Blood group mismatch. You cannot donate for this request.
-              </div>
-            )
-          )}
-
-          <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[500px] opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
-            <div className="pt-4 border-t border-gray-100">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Request Details</h3>
-                  <div className="text-sm text-gray-600 space-y-1">
-                    <p><span className="text-gray-500">Patient:</span> {request.PatientName}</p>
-                    <p><span className="text-gray-500">Blood Group:</span> {request.BloodGroup}</p>
-                    <p><span className="text-gray-500">Units Needed:</span> {request.UnitsNeeded}</p>
-                    <p><span className="text-gray-500">Units Pending:</span> {request.UnitsNeeded - (request.UnitsDonated || 0)}</p>
-                    {request.EmergencyLevel && (
-                      <p>
-                        <span className="text-gray-500">Emergency Level:</span> 
-                        <span className={`ml-1 inline-block px-2 py-0.5 rounded-full text-xs font-bold ${
-                          request.EmergencyLevel === 'high' ? 'bg-red-100 text-red-800' :
-                          request.EmergencyLevel === 'medium' ? 'bg-orange-100 text-orange-800' :
-                          'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {request.EmergencyLevel === 'high' ? 'High' :
-                           request.EmergencyLevel === 'medium' ? 'Medium' : 'Low'}
-                        </span>
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Location Details</h3>
-                  <div className="text-sm text-gray-600 space-y-1">
-                    <p><span className="text-gray-500">Hospital:</span> {request.Hospital}</p>
-                    <p><span className="text-gray-500">City:</span> {request.City}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div className="flex items-center mt-3 text-sm text-gray-600">
+            <Droplet className="w-4 h-4 mr-2 text-red-500" />
+            <span>Blood Group: <span className="font-bold">{request.BloodGroup}</span></span>
+            {request.RequestDate && (
+              <>
+                <span className="mx-2 text-gray-300">|</span>
+                <Clock className="w-4 h-4 mr-2 text-blue-500" />
+                <span>{new Date(request.RequestDate.seconds * 1000).toLocaleDateString()}</span>
+              </>
+            )}
           </div>
         </div>
+
+        <div className="border-t border-gray-100">
+          {renderContent()}
+        </div>
+        
+        {isExpanded && (
+          <div className="p-4 bg-gray-50 border-t border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white p-3 rounded-lg border">
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Request Details</h3>
+                <div className="text-sm text-gray-600 space-y-1">
+                  <p><span className="font-medium text-gray-500">Patient:</span> {request.PatientName}</p>
+                  <p><span className="font-medium text-gray-500">Blood Group:</span> {request.BloodGroup}</p>
+                  <p><span className="font-medium text-gray-500">Units Needed:</span> {request.UnitsNeeded}</p>
+                  <p><span className="font-medium text-gray-500">Units Pending:</span> {request.UnitsNeeded - (request.UnitsDonated || 0)}</p>
+                  {request.EmergencyLevel && (
+                    <p>
+                      <span className="font-medium text-gray-500">Emergency:</span> 
+                      <span className={`ml-1 inline-block px-2 py-0.5 rounded-full text-xs font-bold ${
+                        request.EmergencyLevel === 'high' ? 'bg-red-100 text-red-800' :
+                        request.EmergencyLevel === 'medium' ? 'bg-orange-100 text-orange-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {request.EmergencyLevel.charAt(0).toUpperCase() + request.EmergencyLevel.slice(1)}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="bg-white p-3 rounded-lg border">
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Location & Attender</h3>
+                <div className="text-sm text-gray-600 space-y-1">
+                  <p><span className="font-medium text-gray-500">Hospital:</span> {request.Hospital}</p>
+                  <p><span className="font-medium text-gray-500">City:</span> {request.City}</p>
+                  <p><span className="font-medium text-gray-500">Attender:</span> {request.AttenderName || 'N/A'}</p>
+                  <p><span className="font-medium text-gray-500">Contact:</span> {request.AttenderMobile || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {renderCancelModal()}
       </div>
     );
   }
@@ -711,121 +697,132 @@ export default function DashboardPage() {
           {/* Dashboard Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-800">Blood Donation Dashboard</h1>
-            <p className="text-gray-600 mt-2">
+            <div className="text-gray-600 mt-2">
               {donorRecord 
-                ? `Welcome back, ${donorRecord.Name}. You are a registered donor with blood type ${donorRecord.BloodGroup}.` 
+                ? <p>{`Welcome back, ${donorRecord.Name}. You are a registered donor with blood type ${donorRecord.BloodGroup}.`}</p>
                 : user 
-                  ? "You're not registered as a donor yet. Consider becoming a donor to help save lives." 
-                  : "Please sign in to access your donation dashboard."
+                  ? (
+                      <div>
+                        <p>You're not registered as a donor yet. Consider becoming a donor to help save lives.</p>
+                        <Link href="/newdonor" passHref>
+                          <Button className="mt-4 bg-red-600 hover:bg-red-700 text-white">Become a Donor</Button>
+                        </Link>
+                      </div>
+                    )
+                  : <p>Please sign in to access your donation dashboard.</p>
               }
-            </p>
-          </div>
-
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div className="stagger-item animate-staggered">
-              <StatCard 
-                title="Active Requests" 
-                value={stats.totalRequests} 
-                icon={AlertCircle} 
-                color="border-blue-500" 
-              />
-            </div>
-            <div className="stagger-item animate-staggered">
-              <StatCard 
-                title="Eligible For Me" 
-                value={stats.pendingRequests} 
-                icon={Clock} 
-                color="border-yellow-500" 
-              />
-            </div>
-            <div className="stagger-item animate-staggered">
-              <StatCard 
-                title="My Completed Donations" 
-                value={stats.completedRequests} 
-                icon={Check} 
-                color="border-green-500" 
-              />
-            </div>
-            <div className="stagger-item animate-staggered">
-              <StatCard 
-                title="Units Needed (Eligible)" 
-                value={stats.unitsNeeded} 
-                icon={Droplet} 
-                color="border-red-500" 
-              />
             </div>
           </div>
 
-          {/* Tabs */}
-          <div className="flex border-b border-gray-200 mb-6">
-            <button
-              className={`py-3 px-6 font-medium text-sm focus:outline-none transition-colors ${
-                activeTab === 'active' 
-                  ? 'border-b-2 border-red-600 text-red-600' 
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-              onClick={() => setActiveTab('active')}
-            >
-              Active Requests
-            </button>
-            <button
-              className={`py-3 px-6 font-medium text-sm focus:outline-none transition-colors ${
-                activeTab === 'mytype' 
-                  ? 'border-b-2 border-red-600 text-red-600' 
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-              onClick={() => setActiveTab('mytype')}
-            >
-              My Blood Type
-            </button>
-            <button
-              className={`py-3 px-6 font-medium text-sm focus:outline-none transition-colors ${
-                activeTab === 'completed' 
-                  ? 'border-b-2 border-red-600 text-red-600' 
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-              onClick={() => setActiveTab('completed')}
-            >
-              Completed
-            </button>
-          </div>
-
-          {/* Request List */}
-          <div className="space-y-4">
-            {isLoading ? (
-              <>
-                <RequestSkeleton />
-                <RequestSkeleton />
-                <RequestSkeleton />
-              </>
-            ) : filteredRequests.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4">
-                {filteredRequests.map((request, index) => (
-                  <div 
-                    key={request.id} 
-                    className="stagger-item animate-staggered"
-                  >
-                    <DonorRequestCard request={request} donorRecord={donorRecord} />
-                  </div>
-                ))}
-        </div>
-            ) : (
-              <div className="text-center py-8 animate-fade-in-up">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
-                  <Info className="h-8 w-8 text-gray-400" />
+          {donorRecord && (
+            <>
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div className="stagger-item animate-staggered">
+                  <StatCard 
+                    title="Active Requests" 
+                    value={stats.totalRequests} 
+                    icon={AlertCircle} 
+                    color="border-blue-500" 
+                  />
                 </div>
-                <h3 className="text-lg font-medium text-gray-900">No requests found</h3>
-                <p className="mt-1 text-gray-500">
-                  {activeTab === 'active'
-                    ? "There are currently no active blood donation requests."
-                    : activeTab === 'mytype'
-                    ? `There are no active requests matching your blood type (${donorRecord?.BloodGroup || 'Unknown'}).`
-                    : "There are no completed donation requests."}
-                </p>
+                <div className="stagger-item animate-staggered">
+                  <StatCard 
+                    title="Eligible For Me" 
+                    value={stats.pendingRequests} 
+                    icon={Clock} 
+                    color="border-yellow-500" 
+                  />
+                </div>
+                <div className="stagger-item animate-staggered">
+                  <StatCard 
+                    title="My Completed Donations" 
+                    value={stats.completedRequests} 
+                    icon={Check} 
+                    color="border-green-500" 
+                  />
+                </div>
+                <div className="stagger-item animate-staggered">
+                  <StatCard 
+                    title="Units Needed (Eligible)" 
+                    value={stats.unitsNeeded} 
+                    icon={Droplet} 
+                    color="border-red-500" 
+                  />
+                </div>
               </div>
-            )}
-          </div>
+
+              {/* Tabs */}
+              <div className="flex border-b border-gray-200 mb-6">
+                <button
+                  className={`py-3 px-6 font-medium text-sm focus:outline-none transition-colors ${
+                    activeTab === 'active' 
+                      ? 'border-b-2 border-red-600 text-red-600' 
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                  onClick={() => setActiveTab('active')}
+                >
+                  Active Requests
+                </button>
+                <button
+                  className={`py-3 px-6 font-medium text-sm focus:outline-none transition-colors ${
+                    activeTab === 'mytype' 
+                      ? 'border-b-2 border-red-600 text-red-600' 
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                  onClick={() => setActiveTab('mytype')}
+                >
+                  My Blood Type
+                </button>
+                <button
+                  className={`py-3 px-6 font-medium text-sm focus:outline-none transition-colors ${
+                    activeTab === 'completed' 
+                      ? 'border-b-2 border-red-600 text-red-600' 
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                  onClick={() => setActiveTab('completed')}
+                >
+                  Completed
+                </button>
+              </div>
+
+              {/* Request List */}
+              <div className="space-y-4">
+                {isLoading ? (
+                  <>
+                    <RequestSkeleton />
+                    <RequestSkeleton />
+                    <RequestSkeleton />
+                  </>
+                ) : filteredRequests.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-4">
+                    {filteredRequests.map((request, index) => (
+                      <div 
+                        key={request.id} 
+                        className="stagger-item animate-staggered"
+                      >
+                        <DonorRequestCard request={request} donorRecord={donorRecord} />
+                      </div>
+                    ))}
+            </div>
+                ) : (
+                  <div className="text-center py-8 animate-fade-in-up">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                      <Info className="h-8 w-8 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900">No requests found</h3>
+                    <p className="mt-1 text-gray-500">
+                      {activeTab === 'active'
+                        ? "There are currently no active blood donation requests."
+                        : activeTab === 'mytype'
+                        ? `There are no active requests matching your blood type (${donorRecord?.BloodGroup || 'Unknown'}).`
+                        : "There are no completed donation requests."}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
     </div>
     </>
