@@ -305,7 +305,7 @@ export default function DashboardPage() {
       const diffTime = Math.abs(currentDate - lastDonation);
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       
-      return diffDays >= 30;
+      return diffDays >= 90;
     };
 
     // Generate a 6-digit OTP
@@ -356,7 +356,7 @@ export default function DashboardPage() {
       }
       
       if (!canDonate()) {
-        alert("You cannot donate at this time. You must wait 30 days since your last donation.");
+        alert("You cannot donate at this time. You must wait 90 days since your last donation.");
         return;
       }
       
@@ -559,7 +559,7 @@ export default function DashboardPage() {
                 <div className="flex items-center text-yellow-800 font-medium mb-3">
                   <AlertCircle className="w-5 h-5 mr-2" />
                   {!canDonate() ? (
-                    <span>You cannot donate now. Wait 30 days since your last donation.</span>
+                    <span>You cannot donate now. Wait 90 days since your last donation.</span>
                   ) : (
                     <span>Verify the requester's OTP to complete donation</span>
                   )}
@@ -620,7 +620,7 @@ export default function DashboardPage() {
                 {request.Verified === 'completed' 
                   ? 'Donation Complete' 
                   : !canDonate() 
-                    ? 'Cannot Donate (Wait 30 Days)' 
+                    ? 'Cannot Donate (Wait 90 Days)' 
                     : 'Donate Blood'}
             </Button>
           ) : (

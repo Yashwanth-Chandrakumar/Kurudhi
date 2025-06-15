@@ -250,8 +250,8 @@ export default function SuperAdminDashboard() {
       
       // Calculate donor statistics
       const today = new Date();
-      const threeMonthsAgo = new Date();
-      threeMonthsAgo.setMonth(today.getMonth() - 3);
+      const ninetyDaysAgo = new Date(today);
+      ninetyDaysAgo.setDate(today.getDate() - 90);
       
       // Initialize blood group stats
       const bloodGroupStats = {};
@@ -271,7 +271,7 @@ export default function SuperAdminDashboard() {
           // Check availability based on last donation date
           const lastDonationDate = donor.LastDonationDate ? new Date(donor.LastDonationDate) : null;
           
-          if (!lastDonationDate || lastDonationDate < threeMonthsAgo) {
+          if (!lastDonationDate || lastDonationDate < ninetyDaysAgo) {
             bloodGroupStats[bloodGroup].available += 1;
             availableCount += 1;
           } else {
