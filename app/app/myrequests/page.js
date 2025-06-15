@@ -174,11 +174,11 @@ export default function MyRequestsPage() {
             </Button>
           </div>
           <p className="mt-2 text-gray-600 text-sm"><strong>Your OTP:</strong> {donation.requesterOtp}</p>
-          {donation.requesterOtpVerified ? (
+          {donation.donorOtpVerified && donation.requesterOtpVerified ? (
             <div className="mt-3 p-3 bg-green-100 border border-green-300 rounded">
               <p className="text-green-800 font-bold text-center">Donation completed</p>
             </div>
-          ) : (
+          ) : !donation.requesterOtpVerified ? (
             <div className="mt-3">
               <OtpInput onChange={setEnteredOtp} />
               <Button
@@ -187,6 +187,10 @@ export default function MyRequestsPage() {
               >
                 Verify Donor OTP
               </Button>
+            </div>
+          ) : (
+            <div className="mt-3 p-3 bg-blue-100 border border-blue-300 rounded">
+              <p className="text-blue-800 font-bold text-center">Waiting for confirmation</p>
             </div>
           )}
           <Dialog open={showMoreModal} onOpenChange={(open) => setShowMoreModal(open)}>
