@@ -78,6 +78,7 @@ export default function AdminDashboard() {
     availableDonors: 0,
     unavailableDonors: 0
   })
+  const [activeDonorStatusFilter, setActiveDonorStatusFilter] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
   const [selectedItem, setSelectedItem] = useState(null)
@@ -251,12 +252,15 @@ export default function AdminDashboard() {
             stats.byBloodGroup[donor.BloodGroup].total++;
             
             // Determine if donor is available
-            const lastDonation = donor.LastDonationDate ? new Date(donor.LastDonationDate) : null;
-            const now = new Date();
-            const threeMonthsAgo = new Date();
-            threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+            const lastDonation = donor.lastDonationDate && donor.lastDonationDate.toDate
+              ? donor.lastDonationDate.toDate()
+              : donor.lastDonationDate
+              ? new Date(donor.lastDonationDate)
+              : null
+            const ninetyDaysAgo = new Date();
+            ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
             
-            if (!lastDonation || lastDonation < threeMonthsAgo) {
+            if (!lastDonation || lastDonation < ninetyDaysAgo) {
               stats.byBloodGroup[donor.BloodGroup].available++;
               stats.availableDonors++;
             } else {
@@ -387,6 +391,24 @@ export default function AdminDashboard() {
   } else if (activeTab === 'donors') {
     // Apply multiple filters on donors
     filteredData = donors.filter(donor => {
+      // Filter by availability status
+      if (activeDonorStatusFilter !== 'all') {
+        const ninetyDaysAgo = new Date()
+        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
+        const lastDonationDate = donor.lastDonationDate && donor.lastDonationDate.toDate
+          ? donor.lastDonationDate.toDate()
+          : donor.lastDonationDate
+          ? new Date(donor.lastDonationDate)
+          : null
+        const isAvailable = !lastDonationDate || lastDonationDate < ninetyDaysAgo
+
+        if (activeDonorStatusFilter === 'available' && !isAvailable) {
+          return false
+        }
+        if (activeDonorStatusFilter === 'unavailable' && isAvailable) {
+          return false
+        }
+      }
       // First apply search query filter (case-insensitive)
       if (searchQuery && donor.Name && !donor.Name.toLowerCase().includes(searchQuery.toLowerCase())) {
         return false;
@@ -651,19 +673,40 @@ export default function AdminDashboard() {
             <div className="mb-8">
               <h3 className="text-xl font-bold text-gray-800 mb-4">Donor Statistics</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-white rounded-xl shadow-md p-6">
+                <div
+                  className={`bg-white rounded-xl shadow-md p-6 cursor-pointer transition-all ${
+                    activeDonorStatusFilter === 'all'
+                      ? 'ring-2 ring-red-500'
+                      : 'hover:shadow-lg'
+                  }`}
+                  onClick={() => setActiveDonorStatusFilter('all')}
+                >
                   <h4 className="text-lg font-semibold text-gray-700 mb-2">Total Donors</h4>
                   <p className="text-3xl font-bold text-red-600">{donors.length}</p>
                 </div>
-                <div className="bg-white rounded-xl shadow-md p-6">
+                <div
+                  className={`bg-white rounded-xl shadow-md p-6 cursor-pointer transition-all ${
+                    activeDonorStatusFilter === 'available'
+                      ? 'ring-2 ring-green-500'
+                      : 'hover:shadow-lg'
+                  }`}
+                  onClick={() => setActiveDonorStatusFilter('available')}
+                >
                   <h4 className="text-lg font-semibold text-gray-700 mb-2">Available Donors</h4>
                   <p className="text-3xl font-bold text-green-600">{donorStats.availableDonors}</p>
                   <p className="text-sm text-gray-500">Eligible to donate now</p>
                 </div>
-                <div className="bg-white rounded-xl shadow-md p-6">
+                <div
+                  className={`bg-white rounded-xl shadow-md p-6 cursor-pointer transition-all ${
+                    activeDonorStatusFilter === 'unavailable'
+                      ? 'ring-2 ring-orange-500'
+                      : 'hover:shadow-lg'
+                  }`}
+                  onClick={() => setActiveDonorStatusFilter('unavailable')}
+                >
                   <h4 className="text-lg font-semibold text-gray-700 mb-2">Unavailable Donors</h4>
                   <p className="text-3xl font-bold text-orange-500">{donorStats.unavailableDonors}</p>
-                  <p className="text-sm text-gray-500">Recently donated (within 3 months)</p>
+                  <p className="text-sm text-gray-500">Recently donated (within 90 days)</p>
                 </div>
               </div>
               
@@ -1190,6 +1233,18 @@ export default function AdminDashboard() {
                       <div>
                         <p className="font-semibold">Whatsapp Number</p>
                         <p>{selectedItem.WhatsappNumber}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Last Donation Date</p>
+                        <p>
+                          {selectedItem.lastDonationDate
+                            ? new Date(
+                                selectedItem.lastDonationDate.toDate
+                                  ? selectedItem.lastDonationDate.toDate()
+                                  : selectedItem.lastDonationDate
+                              ).toLocaleDateString()
+                            : 'N/A'}
+                        </p>
                       </div>
                     </div>
                   ) : (

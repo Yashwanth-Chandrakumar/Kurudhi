@@ -78,6 +78,7 @@ export default function SuperAdminDashboard() {
   const [activeBloodGroupFilter, setActiveBloodGroupFilter] = useState('all')
   const [activeGenderFilter, setActiveGenderFilter] = useState('all')
   const [activeCityFilter, setActiveCityFilter] = useState('all')
+  const [activeDonorStatusFilter, setActiveDonorStatusFilter] = useState('all')
   const [donorStats, setDonorStats] = useState({
     availableDonors: 0,
     unavailableDonors: 0,
@@ -269,7 +270,11 @@ export default function SuperAdminDashboard() {
           bloodGroupStats[bloodGroup].total += 1;
           
           // Check availability based on last donation date
-          const lastDonationDate = donor.LastDonationDate ? new Date(donor.LastDonationDate) : null;
+          const lastDonationDate = donor.lastDonationDate && donor.lastDonationDate.toDate
+            ? donor.lastDonationDate.toDate()
+            : donor.lastDonationDate
+            ? new Date(donor.lastDonationDate)
+            : null;
           
           if (!lastDonationDate || lastDonationDate < ninetyDaysAgo) {
             bloodGroupStats[bloodGroup].available += 1;
@@ -452,6 +457,25 @@ export default function SuperAdminDashboard() {
   } else if (activeTab === 'donors') {
     // Apply multiple filters on donors
     filteredData = donors.filter(donor => {
+      // Filter by availability status
+      if (activeDonorStatusFilter !== 'all') {
+        const ninetyDaysAgo = new Date()
+        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
+        const lastDonationDate = donor.lastDonationDate && donor.lastDonationDate.toDate
+          ? donor.lastDonationDate.toDate()
+          : donor.lastDonationDate
+          ? new Date(donor.lastDonationDate)
+          : null
+        const isAvailable = !lastDonationDate || lastDonationDate < ninetyDaysAgo
+
+        if (activeDonorStatusFilter === 'available' && !isAvailable) {
+          return false
+        }
+        if (activeDonorStatusFilter === 'unavailable' && isAvailable) {
+          return false
+        }
+      }
+
       // First apply search query filter (case-insensitive)
       if (searchQuery && donor.Name && !donor.Name.toLowerCase().includes(searchQuery.toLowerCase())) {
         return false;
@@ -859,19 +883,40 @@ export default function SuperAdminDashboard() {
             <div className="mb-8">
               <h3 className="text-xl font-bold text-gray-800 mb-4">Donor Statistics</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-white rounded-xl shadow-md p-6">
+                <div
+                  className={`bg-white rounded-xl shadow-md p-6 cursor-pointer transition-all ${
+                    activeDonorStatusFilter === 'all'
+                      ? 'ring-2 ring-red-500'
+                      : 'hover:shadow-lg'
+                  }`}
+                  onClick={() => setActiveDonorStatusFilter('all')}
+                >
                   <h4 className="text-lg font-semibold text-gray-700 mb-2">Total Donors</h4>
                   <p className="text-3xl font-bold text-red-600">{donors.length}</p>
                 </div>
-                <div className="bg-white rounded-xl shadow-md p-6">
+                <div
+                  className={`bg-white rounded-xl shadow-md p-6 cursor-pointer transition-all ${
+                    activeDonorStatusFilter === 'available'
+                      ? 'ring-2 ring-green-500'
+                      : 'hover:shadow-lg'
+                  }`}
+                  onClick={() => setActiveDonorStatusFilter('available')}
+                >
                   <h4 className="text-lg font-semibold text-gray-700 mb-2">Available Donors</h4>
                   <p className="text-3xl font-bold text-green-600">{donorStats.availableDonors}</p>
                   <p className="text-sm text-gray-500">Eligible to donate now</p>
                 </div>
-                <div className="bg-white rounded-xl shadow-md p-6">
+                <div
+                  className={`bg-white rounded-xl shadow-md p-6 cursor-pointer transition-all ${
+                    activeDonorStatusFilter === 'unavailable'
+                      ? 'ring-2 ring-orange-500'
+                      : 'hover:shadow-lg'
+                  }`}
+                  onClick={() => setActiveDonorStatusFilter('unavailable')}
+                >
                   <h4 className="text-lg font-semibold text-gray-700 mb-2">Unavailable Donors</h4>
                   <p className="text-3xl font-bold text-orange-500">{donorStats.unavailableDonors}</p>
-                  <p className="text-sm text-gray-500">Recently donated (within 3 months)</p>
+                  <p className="text-sm text-gray-500">Recently donated (within 90 days)</p>
                 </div>
               </div>
               
@@ -911,6 +956,7 @@ export default function SuperAdminDashboard() {
                     setActiveBloodGroupFilter('all');
                     setActiveGenderFilter('all');
                     setActiveCityFilter('all');
+                    setActiveDonorStatusFilter('all');
                     setSearchQuery('');
                     setCurrentPage(1);
                   }}
@@ -1079,10 +1125,31 @@ export default function SuperAdminDashboard() {
                     </SelectContent>
                   </Select>
                 </div>
+                
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Filter by Donor Status</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { label: 'All', value: 'all' },
+                      { label: 'Available', value: 'available' },
+                      { label: 'Unavailable', value: 'unavailable' }
+                    ].map(status => (
+                      <button
+                        key={status.value}
+                        onClick={() => { setActiveDonorStatusFilter(status.value); setCurrentPage(1) }}
+                        className={`px-4 py-2 rounded ${
+                          activeDonorStatusFilter === status.value ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-800'
+                        }`}
+                      >
+                        {status.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
               
               {/* Active filter summary */}
-              {(activeBloodGroupFilter !== 'all' || activeGenderFilter !== 'all' || activeCityFilter !== 'all' || searchQuery) && (
+              {(activeBloodGroupFilter !== 'all' || activeGenderFilter !== 'all' || activeCityFilter !== 'all' || searchQuery || activeDonorStatusFilter !== 'all') && (
                 <div className="mt-6 p-3 bg-blue-50 border border-blue-100 rounded-lg">
                   <h4 className="font-medium text-blue-800 mb-2">Active Filters:</h4>
                   <div className="flex flex-wrap gap-2">
@@ -1104,6 +1171,11 @@ export default function SuperAdminDashboard() {
                     {activeCityFilter !== 'all' && (
                       <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
                         City: {activeCityFilter}
+                      </span>
+                    )}
+                    {activeDonorStatusFilter !== 'all' && (
+                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                        Donor Status: {activeDonorStatusFilter}
                       </span>
                     )}
                   </div>
@@ -1702,6 +1774,19 @@ export default function SuperAdminDashboard() {
                           ) : (
                             <p className="text-gray-900">{selectedItem.WhatsappNumber}</p>
                           )}
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Last Donation Date</label>
+                          <p className="text-gray-900">
+                            {selectedItem.lastDonationDate
+                              ? new Date(
+                                  selectedItem.lastDonationDate.toDate
+                                    ? selectedItem.lastDonationDate.toDate()
+                                    : selectedItem.lastDonationDate
+                                ).toLocaleDateString()
+                              : 'N/A'}
+                          </p>
                         </div>
 
                         {isEditing && (
