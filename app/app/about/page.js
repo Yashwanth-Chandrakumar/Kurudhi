@@ -157,9 +157,6 @@ export default function About() {
             <button className="bg-white text-red-700 px-10 py-4 rounded-full font-bold hover:bg-gray-100 transition-all" onClick={() => router.push("/newdonor")}>
               Become a Donor
             </button>
-            <button className="border-2 border-white text-white px-10 py-4 rounded-full font-bold hover:bg-white hover:text-red-700 transition-all">
-              Learn More
-            </button>
           </div>
         </div>
       </section>

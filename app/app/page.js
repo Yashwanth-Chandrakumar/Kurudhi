@@ -3,9 +3,10 @@ import Navbar from "@/components/Navbar";
 import { Activity, ArrowRight, Calendar, Heart, Mail, MapPin, Phone, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useAuth } from "@/context/AuthContext";
 
 import { getApp, getApps, initializeApp } from 'firebase/app';
-import { collection, getFirestore, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, getFirestore, onSnapshot, query, where } from 'firebase/firestore';
 
 // Firebase configuration (using your environment variables)
 const firebaseConfig = {
@@ -34,6 +35,8 @@ const StatCard = ({ icon: Icon, title, value }) => (
 
 export default function Home() {
   const router = useRouter();
+  const { user } = useAuth();
+  const [isDonor, setIsDonor] = useState(false);
 
   // State for real-time stats
   const [stats, setStats] = useState({
@@ -79,6 +82,25 @@ export default function Home() {
       campsUnsub();
     };
   }, []);
+
+  useEffect(() => {
+    const checkIfDonor = async () => {
+      if (user && user.email) {
+        try {
+          const q = query(collection(db, "donors"), where("Email", "==", user.email));
+          const snapshot = await getDocs(q);
+          setIsDonor(!snapshot.empty);
+        } catch (error) {
+          console.error("Error checking donor status:", error);
+          setIsDonor(false);
+        }
+      } else {
+        setIsDonor(false);
+      }
+    };
+
+    checkIfDonor();
+  }, [user]);
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -172,17 +194,19 @@ export default function Home() {
         </section>
 
         {/* CTA Section */}
-        <section className="bg-red-700 text-white py-20">
-          <div className="container mx-auto px-4 text-center">
-            <h2 className="text-4xl font-bold mb-6">Ready to Save Lives?</h2>
-            <p className="text-xl mb-8 max-w-2xl mx-auto">
-              Become a part of our dedicated community of blood donors and make a life-changing impact today.
-            </p>
-            <button className="bg-white text-red-700 px-10 py-4 rounded-full font-bold hover:bg-gray-100 transition-all" onClick={() => router.push('/newdonor')}>
-              Register as Donor
-            </button>
-          </div>
-        </section>
+        {!isDonor && (
+          <section className="bg-red-700 text-white py-20">
+            <div className="container mx-auto px-4 text-center">
+              <h2 className="text-4xl font-bold mb-6">Ready to Save Lives?</h2>
+              <p className="text-xl mb-8 max-w-2xl mx-auto">
+                Become a part of our dedicated community of blood donors and make a life-changing impact today.
+              </p>
+              <button className="bg-white text-red-700 px-10 py-4 rounded-full font-bold hover:bg-gray-100 transition-all" onClick={() => router.push('/newdonor')}>
+                Register as Donor
+              </button>
+            </div>
+          </section>
+        )}
 
         {/* Contact Section */}
         <section className="py-16 bg-red-50">
