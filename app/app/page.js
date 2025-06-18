@@ -138,7 +138,7 @@ export default function Home() {
             <div className="md:w-1/2 mt-10 md:mt-0 flex justify-center">
               <div className="w-full max-w-md px-4">
                 <img 
-                  src="/4414663.jpg"
+                  src="/istockphoto-1033906526-612x612.jpg"
                   alt="Blood Donation" 
                   className="w-full h-[400px] object-cover rounded-2xl border-4 border-white shadow-2xl animate-float"
                 />

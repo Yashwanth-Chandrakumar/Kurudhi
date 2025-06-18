@@ -147,6 +147,11 @@ const Navbar = () => {
             <Link href="/camp" className={`px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/camp" ? "text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
               Host a Camp
             </Link>
+            {user && (
+              <Link href="/myrequests" className={`px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/myrequests" ? "text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
+                My Requests
+              </Link>
+            )}
             {user ? (
               <div className="relative">
                 <button
@@ -172,13 +177,34 @@ const Navbar = () => {
                     >
                       Profile
                     </Link>
-                    <Link
-                      href="/myrequests"
-                      className={`block px-4 py-2 text-sm transition-colors ${pathname === "/myrequests" ? "bg-red-100 text-red-700" : "text-gray-700 hover:bg-gray-100"}`}
-                      onClick={() => setShowProfileDropdown(false)}
-                    >
-                      My Requests
-                    </Link>
+                    {userRole === 'admin' && (
+                      <Link
+                        href="/admin"
+                        className={`block px-4 py-2 text-sm transition-colors ${pathname === "/admin" ? "bg-red-100 text-red-700" : "text-gray-700 hover:bg-gray-100"}`}
+                        onClick={() => setShowProfileDropdown(false)}
+                      >
+                        Admin
+                      </Link>
+                    )}
+                    {userRole === 'superadmin' && (
+                      <>
+                        <Link
+                          href="/admin"
+                          className={`block px-4 py-2 text-sm transition-colors ${pathname === "/admin" ? "bg-red-100 text-red-700" : "text-gray-700 hover:bg-gray-100"}`}
+                          onClick={() => setShowProfileDropdown(false)}
+                        >
+                          Admin
+                        </Link>
+                        <Link
+                          href="/superadmin"
+                          className={`block px-4 py-2 text-sm transition-colors ${pathname === "/superadmin" ? "bg-red-100 text-red-700" : "text-gray-700 hover:bg-gray-100"}`}
+                          onClick={() => setShowProfileDropdown(false)}
+                        >
+                          Superadmin
+                        </Link>
+                      </>
+                    )}
+
                     <button
                       onClick={() => setShowLogoutConfirm(true)}
                       className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -230,6 +256,11 @@ const Navbar = () => {
               <Link href="/camp" className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/camp" ? "text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
                 Host a Camp
               </Link>
+              {user && (
+                <Link href="/myrequests" className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/myrequests" ? "text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
+                  My Requests
+                </Link>
+              )}
               {user ? (
                 <div className="relative">
                   <button
@@ -255,13 +286,34 @@ const Navbar = () => {
                       >
                         Profile
                       </Link>
-                      <Link
-                        href="/myrequests"
-                        className={`block px-3 py-2 text-base transition-colors ${pathname === "/myrequests" ? "bg-red-100 text-red-700" : "text-gray-700 hover:bg-gray-100"}`}
-                        onClick={() => setShowProfileDropdown(false)}
-                      >
-                        My Requests
-                      </Link>
+                      {userRole === 'admin' && (
+                        <Link
+                          href="/admin"
+                          className={`block px-3 py-2 text-base transition-colors ${pathname === "/admin" ? "bg-red-100 text-red-700" : "text-gray-700 hover:bg-gray-100"}`}
+                          onClick={() => setShowProfileDropdown(false)}
+                        >
+                          Admin
+                        </Link>
+                      )}
+                      {userRole === 'superadmin' && (
+                        <>
+                          <Link
+                            href="/admin"
+                            className={`block px-3 py-2 text-base transition-colors ${pathname === "/admin" ? "bg-red-100 text-red-700" : "text-gray-700 hover:bg-gray-100"}`}
+                            onClick={() => setShowProfileDropdown(false)}
+                          >
+                            Admin
+                          </Link>
+                          <Link
+                            href="/superadmin"
+                            className={`block px-3 py-2 text-base transition-colors ${pathname === "/superadmin" ? "bg-red-100 text-red-700" : "text-gray-700 hover:bg-gray-100"}`}
+                            onClick={() => setShowProfileDropdown(false)}
+                          >
+                            Superadmin
+                          </Link>
+                        </>
+                      )}
+
                       <button
                         onClick={() => setShowLogoutConfirm(true)}
                         className="w-full text-left block px-3 py-2 text-base text-gray-700 hover:bg-gray-100"
