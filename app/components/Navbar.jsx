@@ -127,24 +127,24 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6">
-            <Link href="/" className={`px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/" ? "bg-red-800 text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
+            <Link href="/" className={`px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/" ? "text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
               Home
             </Link>
-            <Link href="/dashboard" className={`px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/dashboard" ? "bg-red-800 text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
+            <Link href="/dashboard" className={`px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/dashboard" ? "text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
               Dashboard
             </Link>
-            <Link href="/about" className={`px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/about" ? "bg-red-800 text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
+            <Link href="/about" className={`px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/about" ? "text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
               About
             </Link>
             {user && !isDonor && (
-              <Link href="/newdonor" className={`px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/newdonor" ? "bg-red-800 text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
+              <Link href="/newdonor" className={`px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/newdonor" ? "text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
                 Become a Donor
               </Link>
             )}
-            <Link href="/needdonor" className={`px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/needdonor" ? "bg-red-800 text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
+            <Link href="/needdonor" className={`px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/needdonor" ? "text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
               Require a Donor
             </Link>
-            <Link href="/camp" className={`px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/camp" ? "bg-red-800 text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
+            <Link href="/camp" className={`px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/camp" ? "text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
               Host a Camp
             </Link>
             {user ? (
@@ -210,24 +210,24 @@ const Navbar = () => {
         {isOpen && (
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-              <Link href="/" className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/" ? "bg-red-800 text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
+              <Link href="/" className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/" ? "text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
                 Home
               </Link>
-              <Link href="/dashboard" className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/dashboard" ? "bg-red-800 text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
+              <Link href="/dashboard" className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/dashboard" ? "text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
                 Dashboard
               </Link>
-              <Link href="/about" className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/about" ? "bg-red-800 text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
+              <Link href="/about" className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/about" ? "text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
                 About
               </Link>
               {user && !isDonor && (
-                <Link href="/newdonor" className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/newdonor" ? "bg-red-800 text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
+                <Link href="/newdonor" className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/newdonor" ? "text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
                   Become a Donor
                 </Link>
               )}
-              <Link href="/needdonor" className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/needdonor" ? "bg-red-800 text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
+              <Link href="/needdonor" className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/needdonor" ? "text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
                 Require a Donor
               </Link>
-              <Link href="/camp" className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/camp" ? "bg-red-800 text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
+              <Link href="/camp" className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/camp" ? "text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
                 Host a Camp
               </Link>
               {user ? (

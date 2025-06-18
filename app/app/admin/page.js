@@ -97,6 +97,10 @@ export default function AdminDashboard() {
   const [showEmergencyDialog, setShowEmergencyDialog] = useState(false)
   const [emergencyLevel, setEmergencyLevel] = useState('')
   const [isDonorsModalOpen, setIsDonorsModalOpen] = useState(false)
+  // Cancelled donors modal state
+  const [isCancelledModalOpen, setIsCancelledModalOpen] = useState(false)
+  const [loadingCancelled, setLoadingCancelled] = useState(false)
+  const [requestCancellations, setRequestCancellations] = useState([])
   const [selectedRequestDonors, setSelectedRequestDonors] = useState([])
   const [loadingDonors, setLoadingDonors] = useState(false)
   const [requestsWithDonations, setRequestsWithDonations] = useState([])
@@ -351,6 +355,23 @@ export default function AdminDashboard() {
       setShowEmergencyDialog(true)
     } else {
       setShowConfirmDialog(true)
+    }
+  }
+
+  // Open cancelled donors modal for a request
+  const openCancelledModal = async (requestId) => {
+    try {
+      setLoadingCancelled(true);
+      const cancellationsRef = collection(db, 'requests', requestId, 'cancellations');
+      const snapshot = await getDocs(cancellationsRef);
+      const cancellations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setRequestCancellations(cancellations);
+    } catch (error) {
+      console.error('Error fetching cancellations:', error);
+      toast.error('Failed to load cancellations');
+    } finally {
+      setLoadingCancelled(false);
+      setIsCancelledModalOpen(true);
     }
   }
 
@@ -888,6 +909,12 @@ export default function AdminDashboard() {
                             )}
                           </Button>
                         )}
+                        <Button
+                          onClick={() => openCancelledModal(request.id)}
+                          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition"
+                        >
+                          Cancelled
+                        </Button>
                       </td>
                     </tr>
                   ))}
