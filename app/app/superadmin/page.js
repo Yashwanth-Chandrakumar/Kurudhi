@@ -154,6 +154,11 @@ export default function SuperAdminDashboard() {
   const [isDonorsModalOpen, setIsDonorsModalOpen] = useState(false)
   const [selectedRequestDonors, setSelectedRequestDonors] = useState([])
   const [loadingDonors, setLoadingDonors] = useState(false)
+
+  // Cancelled donors modal state
+  const [isCancelledModalOpen, setIsCancelledModalOpen] = useState(false)
+  const [loadingCancelled, setLoadingCancelled] = useState(false)
+  const [requestCancellations, setRequestCancellations] = useState([])
   const [requestsWithDonations, setRequestsWithDonations] = useState([]) // New state for tracking requests with donations
   const [buttonLoadingId, setButtonLoadingId] = useState(null) // Track which button is loading
 
@@ -583,6 +588,55 @@ export default function SuperAdminDashboard() {
     setIsUserDetailsModalOpen(true)
   }
 
+  // Open cancelled donors modal for a request
+  const openCancelledModal = async (requestId) => {
+    try {
+      setLoadingCancelled(true);
+      const cancellationsRef = collection(db, 'requests', requestId, 'cancellations');
+      const cancellationsSnapshot = await getDocs(cancellationsRef);
+
+      const cancellationsWithDonorDetails = await Promise.all(
+        cancellationsSnapshot.docs.map(async (cancellationDoc) => {
+          const cancellationData = cancellationDoc.data();
+          let donorDetails = {};
+
+          if (cancellationData.donorEmail) {
+            const donorQuery = query(collection(db, 'donors'), where('Email', '==', cancellationData.donorEmail));
+            const donorSnapshot = await getDocs(donorQuery);
+            if (!donorSnapshot.empty) {
+              donorDetails = donorSnapshot.docs[0].data();
+            }
+          } else if (cancellationData.donorId) {
+            // Fallback to get email from users collection using donorId
+            const userDocSnap = await getDoc(doc(db, 'users', cancellationData.donorId));
+            if (userDocSnap.exists() && userDocSnap.data().email) {
+              const donorEmail = userDocSnap.data().email;
+              const donorQuery = query(collection(db, 'donors'), where('Email', '==', donorEmail));
+              const donorSnapshot = await getDocs(donorQuery);
+              if (!donorSnapshot.empty) {
+                donorDetails = donorSnapshot.docs[0].data();
+              }
+            }
+          }
+          
+          return { 
+              id: cancellationDoc.id, 
+              ...cancellationData, 
+              donorDetails 
+          };
+        })
+      );
+
+      setRequestCancellations(cancellationsWithDonorDetails);
+    } catch (error) {
+      console.error('Error fetching cancellations:', error);
+      toast.error('Failed to load cancellations');
+    } finally {
+      setLoadingCancelled(false);
+      setIsCancelledModalOpen(true);
+    }
+  }
+
   // Add a function to open the donors modal
   const openDonorsModal = async (requestId) => {
     setLoadingDonors(true)
@@ -865,6 +919,14 @@ export default function SuperAdminDashboard() {
                               ) : (
                                 "View Donors"
                               )}
+                            </Button>
+                          )}
+                          {activeRequestFilter !== 'received' && (
+                            <Button
+                              onClick={() => openCancelledModal(request.id)}
+                              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition"
+                            >
+                              Cancelled
                             </Button>
                           )}
                         </div>
@@ -1924,6 +1986,179 @@ export default function SuperAdminDashboard() {
           </DialogContent>
         </Dialog>
 
+        {/* Cancelled Donors Modal */}
+        <Dialog open={isCancelledModalOpen} onOpenChange={setIsCancelledModalOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold">Cancelled Donors</DialogTitle>
+            </DialogHeader>
+            {loadingCancelled ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500"></div>
+              </div>
+            ) : requestCancellations.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No cancelled donors found for this request.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {requestCancellations.map((cancellation, index) => (
+                  <div key={cancellation.id} className="border rounded-lg overflow-hidden">
+                    <div className="p-4 bg-gray-50 border-b">
+                      <h3 className="font-bold text-lg text-gray-800">
+                        Cancellation #{index + 1}: {cancellation.donorName || 'Unknown Donor'}
+                      </h3>
+                    </div>
+                    <div className="p-4 bg-white">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {cancellation.donorDetails && (
+                          <>
+                            <div>
+                              <p className="text-sm font-medium text-gray-500">Blood Group</p>
+                              <p className="font-medium">{cancellation.donorDetails.BloodGroup || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-500">Age</p>
+                              <p className="font-medium">{cancellation.donorDetails.Age || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-500">Gender</p>
+                              <p className="font-medium capitalize">{cancellation.donorDetails.Gender || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-500">Phone</p>
+                              <p className="font-medium">{cancellation.donorDetails.MobileNumber || 'N/A'}</p>
+                            </div>
+                          </>
+                        )}
+                        <div>
+                          <p className="text-sm font-medium text-gray-500">Donor Email</p>
+                          <p className="text-gray-900">{cancellation.donorEmail || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-500">Cancelled On</p>
+                          <p className="text-gray-900">
+                            {cancellation.timestamp
+                              ? new Date(
+                                  cancellation.timestamp.toDate
+                                    ? cancellation.timestamp.toDate()
+                                    : cancellation.timestamp
+                                ).toLocaleString()
+                              : 'N/A'}
+                          </p>
+                        </div>
+                        <div className="md:col-span-2">
+                          <p className="text-sm font-medium text-gray-500">Reason for Cancellation</p>
+                          <p className="text-gray-900">{cancellation.reason || 'No reason provided'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Add the Donors Modal */}
+        <Dialog open={isDonorsModalOpen} onOpenChange={setIsDonorsModalOpen}>
+          <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold">Donor Information</DialogTitle>
+            </DialogHeader>
+            {loadingDonors ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+              </div>
+            ) : selectedRequestDonors.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No donations found for this request.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                  <p className="text-blue-800 text-sm">
+                    <span className="font-medium">Note:</span> Showing {selectedRequestDonors.length} donation record(s).
+                  </p>
+                </div>
+                
+                {selectedRequestDonors.map((donation, index) => (
+                  <div key={donation.id} className="border rounded-lg overflow-hidden">
+                    <div className={`p-4 ${donation.donorOtpVerified ? 'bg-green-50' : 'bg-yellow-50'}`}>
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-bold text-lg">
+                          Donor #{index + 1}: {donation.donorDetails?.Name || donation.donorName || 'Unknown'}
+                        </h3>
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          donation.donorOtpVerified 
+                            ? 'bg-green-100 text-green-800 border border-green-200' 
+                            : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                        }`}>
+                          {donation.donorOtpVerified ? 'Donation Complete' : 'Donation Pending'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="p-4 bg-white">
+                      <div className="grid grid-cols-2 gap-3">
+                        {donation.donorDetails && (
+                          <>
+                            <div>
+                              <p className="text-sm text-gray-500">Blood Group</p>
+                              <p className="font-medium">{donation.donorDetails.BloodGroup}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-500">Age</p>
+                              <p className="font-medium">{donation.donorDetails.Age}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-500">Gender</p>
+                              <p className="font-medium capitalize">{donation.donorDetails.Gender}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-500">City</p>
+                              <p className="font-medium">{donation.donorDetails.ResidentCity}</p>
+                            </div>
+                          </>
+                        )}
+                        <div>
+                          <p className="text-sm text-gray-500">Email</p>
+                          <p className="font-medium">{donation.donorEmail || 'Not available'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Phone</p>
+                          <p className="font-medium">{donation.donorDetails?.MobileNumber || 'Not available'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Donation Date</p>
+                          <p className="font-medium">
+                            {donation.timestamp ? new Date(donation.timestamp.toDate ? donation.timestamp.toDate() : donation.timestamp).toLocaleString() : 'Not recorded'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">OTP Status</p>
+                          <div className="flex space-x-2">
+                            <span className={`px-2 py-0.5 rounded-full text-xs ${
+                              donation.requesterOtpVerified ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              Requester: {donation.requesterOtpVerified ? 'Verified' : 'Pending'}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded-full text-xs ${
+                              donation.donorOtpVerified ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              Donor: {donation.donorOtpVerified ? 'Verified' : 'Pending'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
         {/* Add User Details Modal */}
         <Dialog 
           open={isUserDetailsModalOpen} 
@@ -2070,105 +2305,6 @@ export default function SuperAdminDashboard() {
                     <p className="text-sm text-gray-500 mt-1">No donor profile found with this email address.</p>
                   </div>
                 )}
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-
-        {/* Add the Donors Modal */}
-        <Dialog open={isDonorsModalOpen} onOpenChange={setIsDonorsModalOpen}>
-          <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-bold">Donor Information</DialogTitle>
-            </DialogHeader>
-            {loadingDonors ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-              </div>
-            ) : selectedRequestDonors.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500">No donations found for this request.</p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
-                  <p className="text-blue-800 text-sm">
-                    <span className="font-medium">Note:</span> Showing {selectedRequestDonors.length} donation record(s).
-                  </p>
-                </div>
-                
-                {selectedRequestDonors.map((donation, index) => (
-                  <div key={donation.id} className="border rounded-lg overflow-hidden">
-                    <div className={`p-4 ${donation.donorOtpVerified ? 'bg-green-50' : 'bg-yellow-50'}`}>
-                      <div className="flex justify-between items-center">
-                        <h3 className="font-bold text-lg">
-                          Donor #{index + 1}: {donation.donorDetails?.Name || donation.donorName || 'Unknown'}
-                        </h3>
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          donation.donorOtpVerified 
-                            ? 'bg-green-100 text-green-800 border border-green-200' 
-                            : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
-                        }`}>
-                          {donation.donorOtpVerified ? 'Donation Complete' : 'Donation Pending'}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className="p-4 bg-white">
-                      <div className="grid grid-cols-2 gap-3">
-                        {donation.donorDetails && (
-                          <>
-                            <div>
-                              <p className="text-sm text-gray-500">Blood Group</p>
-                              <p className="font-medium">{donation.donorDetails.BloodGroup}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-gray-500">Age</p>
-                              <p className="font-medium">{donation.donorDetails.Age}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-gray-500">Gender</p>
-                              <p className="font-medium capitalize">{donation.donorDetails.Gender}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-gray-500">City</p>
-                              <p className="font-medium">{donation.donorDetails.ResidentCity}</p>
-                            </div>
-                          </>
-                        )}
-                        <div>
-                          <p className="text-sm text-gray-500">Email</p>
-                          <p className="font-medium">{donation.donorEmail || 'Not available'}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500">Phone</p>
-                          <p className="font-medium">{donation.donorDetails?.MobileNumber || 'Not available'}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500">Donation Date</p>
-                          <p className="font-medium">
-                            {donation.timestamp ? new Date(donation.timestamp.toDate ? donation.timestamp.toDate() : donation.timestamp).toLocaleString() : 'Not recorded'}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500">OTP Status</p>
-                          <div className="flex space-x-2">
-                            <span className={`px-2 py-0.5 rounded-full text-xs ${
-                              donation.requesterOtpVerified ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              Requester: {donation.requesterOtpVerified ? 'Verified' : 'Pending'}
-                            </span>
-                            <span className={`px-2 py-0.5 rounded-full text-xs ${
-                              donation.donorOtpVerified ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              Donor: {donation.donorOtpVerified ? 'Verified' : 'Pending'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
               </div>
             )}
           </DialogContent>
