@@ -363,9 +363,41 @@ export default function AdminDashboard() {
     try {
       setLoadingCancelled(true);
       const cancellationsRef = collection(db, 'requests', requestId, 'cancellations');
-      const snapshot = await getDocs(cancellationsRef);
-      const cancellations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setRequestCancellations(cancellations);
+      const cancellationsSnapshot = await getDocs(cancellationsRef);
+
+      const cancellationsWithDonorDetails = await Promise.all(
+        cancellationsSnapshot.docs.map(async (cancellationDoc) => {
+          const cancellationData = cancellationDoc.data();
+          let donorDetails = {};
+
+          if (cancellationData.donorEmail) {
+            const donorQuery = query(collection(db, 'donors'), where('Email', '==', cancellationData.donorEmail));
+            const donorSnapshot = await getDocs(donorQuery);
+            if (!donorSnapshot.empty) {
+              donorDetails = donorSnapshot.docs[0].data();
+            }
+          } else if (cancellationData.donorId) {
+            // Fallback to get email from users collection using donorId
+            const userDocSnap = await getDoc(doc(db, 'users', cancellationData.donorId));
+            if (userDocSnap.exists() && userDocSnap.data().email) {
+              const donorEmail = userDocSnap.data().email;
+              const donorQuery = query(collection(db, 'donors'), where('Email', '==', donorEmail));
+              const donorSnapshot = await getDocs(donorQuery);
+              if (!donorSnapshot.empty) {
+                donorDetails = donorSnapshot.docs[0].data();
+              }
+            }
+          }
+          
+          return { 
+              id: cancellationDoc.id, 
+              ...cancellationData, 
+              donorDetails 
+          };
+        })
+      );
+
+      setRequestCancellations(cancellationsWithDonorDetails);
     } catch (error) {
       console.error('Error fetching cancellations:', error);
       toast.error('Failed to load cancellations');
@@ -1355,6 +1387,26 @@ export default function AdminDashboard() {
                     </div>
                     <div className="p-4 bg-white">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {cancellation.donorDetails && (
+                          <>
+                            <div>
+                              <p className="text-sm font-medium text-gray-500">Blood Group</p>
+                              <p className="font-medium">{cancellation.donorDetails.BloodGroup || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-500">Age</p>
+                              <p className="font-medium">{cancellation.donorDetails.Age || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-500">Gender</p>
+                              <p className="font-medium capitalize">{cancellation.donorDetails.Gender || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-500">Phone</p>
+                              <p className="font-medium">{cancellation.donorDetails.MobileNumber || 'N/A'}</p>
+                            </div>
+                          </>
+                        )}
                         <div>
                           <p className="text-sm font-medium text-gray-500">Donor Email</p>
                           <p className="text-gray-900">{cancellation.donorEmail || 'N/A'}</p>
