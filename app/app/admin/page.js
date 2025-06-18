@@ -909,12 +909,14 @@ export default function AdminDashboard() {
                             )}
                           </Button>
                         )}
-                        <Button
-                          onClick={() => openCancelledModal(request.id)}
-                          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition"
-                        >
-                          Cancelled
-                        </Button>
+                        {activeRequestFilter !== 'received' && (
+                          <Button
+                            onClick={() => openCancelledModal(request.id)}
+                            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition"
+                          >
+                            Cancelled
+                          </Button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -1328,6 +1330,60 @@ export default function AdminDashboard() {
           </DialogContent>
         </Dialog>
 
+        {/* Cancelled Donors Modal */}
+        <Dialog open={isCancelledModalOpen} onOpenChange={setIsCancelledModalOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold">Cancelled Donors</DialogTitle>
+            </DialogHeader>
+            {loadingCancelled ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500"></div>
+              </div>
+            ) : requestCancellations.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No cancelled donors found for this request.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {requestCancellations.map((cancellation, index) => (
+                  <div key={cancellation.id} className="border rounded-lg overflow-hidden">
+                    <div className="p-4 bg-gray-50 border-b">
+                      <h3 className="font-bold text-lg text-gray-800">
+                        Cancellation #{index + 1}: {cancellation.donorName || 'Unknown Donor'}
+                      </h3>
+                    </div>
+                    <div className="p-4 bg-white">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm font-medium text-gray-500">Donor Email</p>
+                          <p className="text-gray-900">{cancellation.donorEmail || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-500">Cancelled On</p>
+                          <p className="text-gray-900">
+                            {cancellation.timestamp
+                              ? new Date(
+                                  cancellation.timestamp.toDate
+                                    ? cancellation.timestamp.toDate()
+                                    : cancellation.timestamp
+                                ).toLocaleString()
+                              : 'N/A'}
+                          </p>
+                        </div>
+                        <div className="md:col-span-2">
+                          <p className="text-sm font-medium text-gray-500">Reason for Cancellation</p>
+                          <p className="text-gray-900">{cancellation.reason || 'No reason provided'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
         {/* Add new Donors Modal */}
         <Dialog open={isDonorsModalOpen} onOpenChange={setIsDonorsModalOpen}>
           <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
@@ -1368,39 +1424,39 @@ export default function AdminDashboard() {
                     </div>
                     
                     <div className="p-4 bg-white">
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {donation.donorDetails && (
                           <>
                             <div>
-                              <p className="text-sm text-gray-500">Blood Group</p>
+                              <p className="text-sm font-medium text-gray-500">Blood Group</p>
                               <p className="font-medium">{donation.donorDetails.BloodGroup}</p>
                             </div>
                             <div>
-                              <p className="text-sm text-gray-500">Age</p>
+                              <p className="text-sm font-medium text-gray-500">Age</p>
                               <p className="font-medium">{donation.donorDetails.Age}</p>
                             </div>
                             <div>
-                              <p className="text-sm text-gray-500">Gender</p>
+                              <p className="text-sm font-medium text-gray-500">Gender</p>
                               <p className="font-medium capitalize">{donation.donorDetails.Gender}</p>
                             </div>
                           </>
                         )}
                         <div>
-                          <p className="text-sm text-gray-500">Email</p>
+                          <p className="text-sm font-medium text-gray-500">Email</p>
                           <p className="font-medium">{donation.donorEmail || 'Not available'}</p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-500">Phone</p>
+                          <p className="text-sm font-medium text-gray-500">Phone</p>
                           <p className="font-medium">{donation.donorDetails?.MobileNumber || 'Not available'}</p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-500">Donation Date</p>
+                          <p className="text-sm font-medium text-gray-500">Donation Date</p>
                           <p className="font-medium">
                             {donation.timestamp ? new Date(donation.timestamp.toDate ? donation.timestamp.toDate() : donation.timestamp).toLocaleString() : 'Not recorded'}
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-500">OTP Status</p>
+                          <p className="text-sm font-medium text-gray-500">OTP Status</p>
                           <div className="flex space-x-2">
                             <span className={`px-2 py-0.5 rounded-full text-xs ${
                               donation.requesterOtpVerified ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'

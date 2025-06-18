@@ -138,29 +138,7 @@ export default function About() {
       </section>
 
       {/* Achievements Section */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
-          <h2 className="text-4xl font-bold text-center text-red-800 mb-12">Our Impact</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-10 text-center">
-            <div className="p-6">
-              <div className="text-5xl font-extrabold text-red-700 mb-2">10,000+</div>
-              <p className="text-lg text-gray-600">Registered Donors</p>
-            </div>
-            <div className="p-6">
-              <div className="text-5xl font-extrabold text-red-700 mb-2">5,000+</div>
-              <p className="text-lg text-gray-600">Lives Saved</p>
-            </div>
-            <div className="p-6">
-              <div className="text-5xl font-extrabold text-red-700 mb-2">100+</div>
-              <p className="text-lg text-gray-600">Partner Hospitals</p>
-            </div>
-            <div className="p-6">
-              <div className="text-5xl font-extrabold text-red-700 mb-2">24/7</div>
-              <p className="text-lg text-gray-600">Support Available</p>
-            </div>
-          </div>
-        </div>
-      </section>
+      
 
       {/* Team Section */}
       <section className="py-20 bg-red-50">
