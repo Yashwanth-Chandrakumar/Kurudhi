@@ -3,12 +3,16 @@ import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/context/AuthContext'
 import { getApp, getApps, initializeApp } from 'firebase/app'
 import {
+  addDoc,
   collection,
   doc,
   getDoc,
@@ -94,6 +98,8 @@ export default function AdminDashboard() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [actionId, setActionId] = useState('')
   const [actionType, setActionType] = useState('')
+  const [showRejectionModal, setShowRejectionModal] = useState(false) 
+  const [rejectionReason, setRejectionReason] = useState('') 
   const [showEmergencyDialog, setShowEmergencyDialog] = useState(false)
   const [emergencyLevel, setEmergencyLevel] = useState('')
   const [isDonorsModalOpen, setIsDonorsModalOpen] = useState(false)
@@ -353,6 +359,9 @@ export default function AdminDashboard() {
     if (action === 'accepted') {
       setEmergencyLevel('') // Reset emergency level
       setShowEmergencyDialog(true)
+    } else if (action === 'rejected') {
+      // Open rejection modal for 'rejected' action
+      setShowRejectionModal(true)
     } else {
       setShowConfirmDialog(true)
     }
@@ -429,6 +438,45 @@ export default function AdminDashboard() {
       setSearchQuery('') // Reset search query
     }
     setIsSidebarOpen(false)
+  }
+
+  // Handle the submission of the rejection reason
+  const handleRejectionSubmit = async () => {
+    if (!actionId || !rejectionReason.trim()) {
+      toast.error('Rejection reason cannot be empty.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const requestRef = doc(db, 'requests', actionId)
+      const rejectionRef = collection(requestRef, 'rejections')
+
+      // Add rejection information to the 'rejections' subcollection
+      await addDoc(rejectionRef, {
+        reason: rejectionReason,
+        rejectedBy: user.displayName || user.email, // Admin's name or email
+        userId: user.uid, // Admin's user ID
+        rejectedAt: new Date(),
+      })
+
+      // Update the request status to 'rejected'
+      await updateDoc(requestRef, {
+        Verified: 'rejected',
+      })
+
+      toast.success('Request rejected successfully with reason.')
+      fetchRequests() // Refresh the requests list
+    } catch (error) {
+      console.error('Error rejecting request:', error)
+      toast.error('Failed to reject request.')
+    } finally {
+      setLoading(false)
+      setShowRejectionModal(false)
+      setRejectionReason('') // Reset reason
+      setActionId(null)
+      setActionType(null)
+    }
   }
 
   // Filter data based on active tab and sub-tab selections
@@ -649,6 +697,32 @@ export default function AdminDashboard() {
               Donors
             </Link>
           </nav>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rejection Reason Modal */}
+      <Dialog open={showRejectionModal} onOpenChange={setShowRejectionModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Request</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for rejecting this request. This information will be stored for internal records.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea
+              placeholder="Enter rejection reason..."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              className="min-h-[100px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRejectionModal(false)}>Cancel</Button>
+            <Button onClick={handleRejectionSubmit} disabled={loading}>
+              {loading ? 'Submitting...' : 'Submit Rejection'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
