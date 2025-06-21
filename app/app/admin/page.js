@@ -105,12 +105,16 @@ export default function AdminDashboard() {
   const [isDonorsModalOpen, setIsDonorsModalOpen] = useState(false)
   // Cancelled donors modal state
   const [isCancelledModalOpen, setIsCancelledModalOpen] = useState(false)
-  const [loadingCancelled, setLoadingCancelled] = useState(false)
   const [requestCancellations, setRequestCancellations] = useState([])
+  const [loadingCancelled, setLoadingCancelled] = useState(false)
   const [selectedRequestDonors, setSelectedRequestDonors] = useState([])
   const [loadingDonors, setLoadingDonors] = useState(false)
   const [requestsWithDonations, setRequestsWithDonations] = useState([])
   const [buttonLoadingId, setButtonLoadingId] = useState(null)
+
+  const [isRejectionDetailsModalOpen, setIsRejectionDetailsModalOpen] = useState(false)
+  const [rejectionDetails, setRejectionDetails] = useState([])
+  const [loadingRejectionDetails, setLoadingRejectionDetails] = useState(false)
 
   // Before any useEffect calls, update the fetchRequests function to use useCallback
   // Define fetchRequests with useCallback
@@ -364,6 +368,44 @@ export default function AdminDashboard() {
       setShowRejectionModal(true)
     } else {
       setShowConfirmDialog(true)
+    }
+  }
+
+  // Open cancelled donors modal for a request
+  // Open rejection details modal for a request
+  const openRejectionDetailsModal = async (requestId) => {
+    try {
+      setLoadingRejectionDetails(true);
+      const rejectionsRef = collection(db, 'requests', requestId, 'rejections');
+      const rejectionsSnapshot = await getDocs(rejectionsRef);
+
+      const rejectionsWithAdminDetails = await Promise.all(
+        rejectionsSnapshot.docs.map(async (rejectionDoc) => {
+          const rejectionData = rejectionDoc.data();
+          let adminDetails = {};
+
+          if (rejectionData.userId) {
+            const userDocSnap = await getDoc(doc(db, 'users', rejectionData.userId));
+            if (userDocSnap.exists()) {
+              adminDetails = userDocSnap.data();
+            }
+          }
+          
+          return { 
+              id: rejectionDoc.id, 
+              ...rejectionData, 
+              adminDetails 
+          };
+        })
+      );
+
+      setRejectionDetails(rejectionsWithAdminDetails);
+    } catch (error) {
+      console.error('Error fetching rejection details:', error);
+      toast.error('Failed to load rejection details');
+    } finally {
+      setLoadingRejectionDetails(false);
+      setIsRejectionDetailsModalOpen(true);
     }
   }
 
@@ -700,6 +742,40 @@ export default function AdminDashboard() {
         </DialogContent>
       </Dialog>
 
+      {/* Rejection Details Modal */}
+      <Dialog open={isRejectionDetailsModalOpen} onOpenChange={setIsRejectionDetailsModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Rejection Details</DialogTitle>
+            <DialogDescription>
+              The following are the reasons provided for rejecting this request.
+            </DialogDescription>
+          </DialogHeader>
+          {loadingRejectionDetails ? (
+            <div className="flex justify-center items-center h-32">
+              <p>Loading details...</p>
+            </div>
+          ) : rejectionDetails.length > 0 ? (
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {rejectionDetails.map((rejection) => (
+                <div key={rejection.id} className="p-4 border rounded-lg">
+                  <p className="font-semibold">Reason:</p>
+                  <p className="mb-2">{rejection.reason}</p>
+                  <p className="text-sm text-gray-500">
+                    Rejected by: {rejection.adminDetails.name || rejection.rejectedBy} on {new Date(rejection.rejectedAt.seconds * 1000).toLocaleDateString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p>No rejection details found for this request.</p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRejectionDetailsModalOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Rejection Reason Modal */}
       <Dialog open={showRejectionModal} onOpenChange={setShowRejectionModal}>
         <DialogContent>
@@ -1015,12 +1091,17 @@ export default function AdminDashboard() {
                             )}
                           </Button>
                         )}
-                        {activeRequestFilter !== 'received' && (
+                        {activeRequestFilter !== 'received' && request.Verified !== 'rejected' && (
                           <Button
                             onClick={() => openCancelledModal(request.id)}
                             className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition"
                           >
                             Cancelled
+                          </Button>
+                        )}
+                        {request.Verified === 'rejected' && (
+                          <Button variant="secondary" onClick={() => openRejectionDetailsModal(request.id)}>
+                            View Reason
                           </Button>
                         )}
                       </td>
