@@ -1,4 +1,9 @@
-'use client'
+'use client';
+
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
 import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,7 +14,6 @@ import { Textarea } from '@/components/ui/textarea';
 import CryptoJS from "crypto-js";
 import { initializeApp } from 'firebase/app';
 import { addDoc, collection, getFirestore } from 'firebase/firestore';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -274,7 +278,23 @@ const Stepper = ({ steps, currentStep }) => {
 };
 
 const RequestDonor = () => {
-  const router = useRouter();
+  const { user, loading } = useAuth();
+    const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/signin');
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p className="text-lg text-red-600">Loading, please wait...</p>
+      </div>
+    );
+  }
+
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
     patientName: '',

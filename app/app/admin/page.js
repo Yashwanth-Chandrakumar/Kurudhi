@@ -161,7 +161,7 @@ export default function AdminDashboard() {
   // Check user authorization
   useEffect(() => {
     if (!user) {
-      router.replace('/login')
+      router.replace('/signin')
       return
     }
 
