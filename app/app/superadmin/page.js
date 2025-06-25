@@ -29,6 +29,7 @@ import {
   getDocs,
   getFirestore,
   onSnapshot,
+  orderBy,
   query,
   updateDoc,
   where
@@ -124,7 +125,7 @@ export default function SuperAdminDashboard() {
 
   // State for viewing rejection details
   const [isRejectionDetailsModalOpen, setIsRejectionDetailsModalOpen] = useState(false)
-  const [rejectionDetails, setRejectionDetails] = useState(null)
+  const [rejectionDetails, setRejectionDetails] = useState([])
   const [loadingRejectionDetails, setLoadingRejectionDetails] = useState(false)
 
   // Add emergency level state variables
@@ -444,39 +445,40 @@ export default function SuperAdminDashboard() {
     }
   }
 
-  // Open rejection details modal
+  // Open rejection details modal for a request (fetches all reasons like AdminDashboard)
   const openRejectionDetailsModal = async (requestId) => {
-    setLoadingRejectionDetails(true);
     try {
+      setLoadingRejectionDetails(true);
       const rejectionsRef = collection(db, 'requests', requestId, 'rejections');
-      const q = query(rejectionsRef, orderBy('rejectedAt', 'desc'), limit(1));
-      const querySnapshot = await getDocs(q);
+      const rejectionsSnapshot = await getDocs(rejectionsRef);
 
-      if (!querySnapshot.empty) {
-        const rejectionData = querySnapshot.docs[0].data();
-        
-        let rejectedByUserDetails = { name: 'Unknown Admin' };
-        if (rejectionData.userId) {
-          const userDocRef = doc(db, 'users', rejectionData.userId);
-          const userDocSnap = await getDoc(userDocRef);
-          if (userDocSnap.exists()) {
-            rejectedByUserDetails = userDocSnap.data();
+      const rejectionsWithAdminDetails = await Promise.all(
+        rejectionsSnapshot.docs.map(async (rejectionDoc) => {
+          const rejectionData = rejectionDoc.data();
+          let adminDetails = {};
+
+          if (rejectionData.userId) {
+            const userDocSnap = await getDoc(doc(db, 'users', rejectionData.userId));
+            if (userDocSnap.exists()) {
+              adminDetails = userDocSnap.data();
+            }
           }
-        }
-        
-        setRejectionDetails({
-          ...rejectionData,
-          rejectedBy: rejectedByUserDetails.name || rejectionData.rejectedBy,
-        });
-        setIsRejectionDetailsModalOpen(true);
-      } else {
-        toast.error('No rejection reason found for this request.');
-      }
+
+          return {
+            id: rejectionDoc.id,
+            ...rejectionData,
+            adminDetails,
+          };
+        })
+      );
+
+      setRejectionDetails(rejectionsWithAdminDetails);
     } catch (error) {
       console.error('Error fetching rejection details:', error);
-      toast.error('Failed to load rejection details.');
+      toast.error('Failed to load rejection details');
     } finally {
       setLoadingRejectionDetails(false);
+      setIsRejectionDetailsModalOpen(true);
     }
   };
 
@@ -1044,7 +1046,7 @@ export default function SuperAdminDashboard() {
                               )}
                             </Button>
                           )}
-                          {activeRequestFilter !== 'received' && (
+                          {activeRequestFilter !== 'received' && request.Verified !== 'rejected' && (
                             <Button
                               onClick={() => openCancelledModal(request.id)}
                               className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition"
@@ -2293,37 +2295,34 @@ export default function SuperAdminDashboard() {
 
         {/* Rejection Details Modal */}
         <Dialog open={isRejectionDetailsModalOpen} onOpenChange={setIsRejectionDetailsModalOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Rejection Details</DialogTitle>
               <DialogDescription>
-                Details about why this blood request was rejected.
+                The following are the reasons provided for rejecting this request.
               </DialogDescription>
             </DialogHeader>
             {loadingRejectionDetails ? (
-              <p>Loading...</p>
-            ) : rejectionDetails ? (
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-semibold">Rejection Reason:</h4>
-                  <p className="p-2 bg-gray-100 rounded-md">{rejectionDetails.reason}</p>
-                </div>
-                <div>
-                  <h4 className="font-semibold">Rejected By:</h4>
-                  <p>{rejectionDetails.rejectedBy}</p>
-                </div>
-                <div>
-                  <h4 className="font-semibold">Date of Rejection:</h4>
-                  <p>{rejectionDetails.rejectedAt?.seconds ? new Date(rejectionDetails.rejectedAt.seconds * 1000).toLocaleString() : 'N/A'}</p>
-                </div>
+              <div className="flex justify-center items-center h-32">
+                <p>Loading details...</p>
+              </div>
+            ) : rejectionDetails.length > 0 ? (
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {rejectionDetails.map((rejection) => (
+                  <div key={rejection.id} className="p-4 border rounded-lg">
+                    <p className="font-semibold">Reason:</p>
+                    <p className="mb-2">{rejection.reason}</p>
+                    <p className="text-sm text-gray-500">
+                      Rejected by: {rejection.adminDetails.name || rejection.rejectedBy} on {rejection.rejectedAt?.seconds ? new Date(rejection.rejectedAt.seconds * 1000).toLocaleDateString() : 'N/A'}
+                    </p>
+                  </div>
+                ))}
               </div>
             ) : (
-              <p>No details available.</p>
+              <p>No rejection details found for this request.</p>
             )}
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsRejectionDetailsModalOpen(false)}>
-                Close
-              </Button>
+              <Button variant="outline" onClick={() => setIsRejectionDetailsModalOpen(false)}>Close</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
