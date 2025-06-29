@@ -39,6 +39,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { toast } from 'react-hot-toast'
+import exportToExcel from '@/utils/exportToExcel'
 
 // Firebase configuration
 const firebaseConfig = {
@@ -100,6 +101,30 @@ export default function SuperAdminDashboard() {
     ongoingCamps: 0,
     completedCamps: 0
   })
+
+  // Export handler function
+  const handleExport = () => {
+    let rows = [];
+    let filename = 'data.xlsx';
+    if (activeTab === 'requests') {
+      rows = requests;
+      filename = 'requests.xlsx';
+    } else if (activeTab === 'camps') {
+      rows = camps;
+      filename = 'camps.xlsx';
+    } else if (activeTab === 'donors') {
+      rows = donors;
+      filename = 'donors.xlsx';
+    } else if (activeTab === 'users') {
+      rows = allUsers;
+      filename = 'users.xlsx';
+    }
+    if (!rows.length) {
+      toast.error('No data to export');
+      return;
+    }
+    exportToExcel(rows, filename);
+  }
 
   // Main tab (sidebar) state. For superadmins we allow:
   // 'requests', 'camps', 'donors', 'manageAdmins'
@@ -939,6 +964,7 @@ export default function SuperAdminDashboard() {
               ? 'All Users'
               : 'Manage Admins'}
           </h1>
+          <Button variant="outline" onClick={handleExport}>Export</Button>
           <button className="md:hidden p-2 rounded bg-gray-200 hover:bg-gray-300 transition" onClick={() => setIsSidebarOpen(true)}>
             <svg className="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"></path>

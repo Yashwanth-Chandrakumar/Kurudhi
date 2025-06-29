@@ -26,6 +26,7 @@ import {
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import exportToExcel from '@/utils/exportToExcel'
 import { useEffect, useState, useCallback } from 'react'
 import { toast } from 'react-hot-toast'
 import {
@@ -115,6 +116,27 @@ export default function AdminDashboard() {
   const [isRejectionDetailsModalOpen, setIsRejectionDetailsModalOpen] = useState(false)
   const [rejectionDetails, setRejectionDetails] = useState([])
   const [loadingRejectionDetails, setLoadingRejectionDetails] = useState(false)
+
+  // Function to export current section data to Excel
+  const handleExport = () => {
+    let rows = [];
+    let filename = 'data.xlsx';
+    if (activeTab === 'requests') {
+      rows = requests;
+      filename = 'requests.xlsx';
+    } else if (activeTab === 'camps') {
+      rows = camps;
+      filename = 'camps.xlsx';
+    } else if (activeTab === 'donors') {
+      rows = donors;
+      filename = 'donors.xlsx';
+    }
+    if (!rows.length) {
+      toast.error('No data to export');
+      return;
+    }
+    exportToExcel(rows, filename);
+  }
 
   // Before any useEffect calls, update the fetchRequests function to use useCallback
   // Define fetchRequests with useCallback
@@ -817,6 +839,7 @@ export default function AdminDashboard() {
               Managing {assignedCity}
             </div>
           )}
+          <Button variant="outline" onClick={handleExport}>Export</Button>
           <button className="md:hidden p-2 rounded bg-gray-200 hover:bg-gray-300 transition" onClick={() => setIsSidebarOpen(true)}>
             <svg className="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"></path>
