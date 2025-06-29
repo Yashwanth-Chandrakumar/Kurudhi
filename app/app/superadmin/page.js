@@ -103,9 +103,11 @@ export default function SuperAdminDashboard() {
   })
 
   // Export handler function
-  const handleExport = () => {
+  const handleExport = async () => {
+    console.log('handleExport called. Active tab:', activeTab);
     let rows = [];
     let filename = 'data.xlsx';
+
     if (activeTab === 'requests') {
       rows = requests;
       filename = 'requests.xlsx';
@@ -118,11 +120,34 @@ export default function SuperAdminDashboard() {
     } else if (activeTab === 'users') {
       rows = allUsers;
       filename = 'users.xlsx';
+    } else if (activeTab === 'manageAdmins') {
+      filename = 'admins.xlsx';
+      console.log('Fetching admins for export...');
+      try {
+        const adminsQuery = query(collection(db, 'users'), where('role', 'in', ['admin', 'superadmin']));
+        const querySnapshot = await getDocs(adminsQuery);
+        const adminData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log('Fetched admin data:', adminData);
+
+        if (adminData.length === 0) {
+          toast.error('No admin data to export');
+          return;
+        }
+        rows = adminData;
+      } catch (err) {
+        console.error('Error fetching admins for export:', err);
+        toast.error('Failed to export admin data.');
+        return;
+      }
     }
+
     if (!rows.length) {
+      console.log('No data to export, exiting.');
       toast.error('No data to export');
       return;
     }
+    
+    console.log(`Exporting ${rows.length} rows to ${filename}...`);
     exportToExcel(rows, filename);
   }
 

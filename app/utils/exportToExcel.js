@@ -6,6 +6,7 @@ import * as XLSX from 'xlsx';
  * @param {string} filename - Filename with extension, e.g. "data.xlsx".
  */
 export default function exportToExcel(rows, filename = 'data.xlsx') {
+  console.log('[exportToExcel] Function called with:', { rowCount: rows.length, filename });
   if (!Array.isArray(rows) || !rows.length) {
     console.warn('[exportToExcel] Nothing to export');
     return;
@@ -52,5 +53,6 @@ export default function exportToExcel(rows, filename = 'data.xlsx') {
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
 
   // Trigger download
+  console.log('[exportToExcel] Triggering download for', filename);
   XLSX.writeFile(workbook, filename);
 }
