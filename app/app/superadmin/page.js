@@ -202,6 +202,8 @@ export default function SuperAdminDashboard() {
   // State for donor edit/delete
   const [isEditDonorModalOpen, setIsEditDonorModalOpen] = useState(false);
   const [isDeleteDonorConfirmOpen, setIsDeleteDonorConfirmOpen] = useState(false);
+  const [isDeleteUserConfirmOpen, setIsDeleteUserConfirmOpen] = useState(false);
+  const [selectedUserToDelete, setSelectedUserToDelete] = useState(null);
   const [selectedDonor, setSelectedDonor] = useState(null);
   const [editedDonorData, setEditedDonorData] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -820,6 +822,38 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  const handleDeleteUserClick = (user) => {
+    setSelectedUserToDelete(user);
+    setIsDeleteUserConfirmOpen(true);
+  };
+
+  // Function to handle the confirmed deletion of a user and their donor data
+  const handleConfirmDeleteUser = async () => {
+    if (!selectedUserToDelete) return;
+
+    try {
+      // Check for and delete the associated donor document first
+      const donorQuery = query(collection(db, 'donors'), where('Email', '==', selectedUserToDelete.email));
+      const donorSnapshot = await getDocs(donorQuery);
+
+      if (!donorSnapshot.empty) {
+        const donorDoc = donorSnapshot.docs[0];
+        await deleteDoc(doc(db, 'donors', donorDoc.id));
+        toast.success('Associated donor record deleted.');
+      }
+
+      // Then, delete the user from the 'users' collection
+      await deleteDoc(doc(db, 'users', selectedUserToDelete.uid));
+
+      toast.success('User deleted successfully');
+      setIsDeleteUserConfirmOpen(false);
+      setSelectedUserToDelete(null);
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast.error('Failed to delete user.');
+    }
+  };
+
   // Function to save changes from the edit donor modal
   const handleSaveDonorChanges = async () => {
     if (!selectedDonor || !editedDonorData) return;
@@ -1159,15 +1193,6 @@ export default function SuperAdminDashboard() {
                               className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition"
                             >
                               Cancelled
-                            </Button>
-                          )}
-                          {request.Verified === 'rejected' && (
-                            <Button
-                              variant='secondary'
-                              size='sm'
-                              onClick={() => openRejectionDetailsModal(request.id)}
-                            >
-                              View Reason
                             </Button>
                           )}
                         </div>
@@ -1621,12 +1646,18 @@ export default function SuperAdminDashboard() {
                               </span>
                             )}
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-4 flex space-x-2">
                             <Button 
                               onClick={() => openUserDetailsModal(user)}
                               className="bg-blue-500 hover:bg-blue-600 text-white"
                             >
                               Details
+                            </Button>
+                            <Button
+                              onClick={() => handleDeleteUserClick(user)}
+                              className="bg-red-500 hover:bg-red-600 text-white"
+                            >
+                              Delete
                             </Button>
                           </td>
                         </tr>
@@ -2685,6 +2716,22 @@ export default function SuperAdminDashboard() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsDeleteDonorConfirmOpen(false)}>Cancel</Button>
               <Button variant="destructive" onClick={handleConfirmDeleteDonor}>Confirm Delete</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete User Confirmation Modal */}
+        <Dialog open={isDeleteUserConfirmOpen} onOpenChange={setIsDeleteUserConfirmOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Are you sure?</DialogTitle>
+              <DialogDescription>
+                This action will permanently delete the user's record and any associated donor data. This cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDeleteUserConfirmOpen(false)}>Cancel</Button>
+              <Button variant="destructive" onClick={handleConfirmDeleteUser}>Confirm Delete</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
