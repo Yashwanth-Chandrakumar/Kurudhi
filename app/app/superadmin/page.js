@@ -32,7 +32,9 @@ import {
   orderBy,
   query,
   updateDoc,
-  where
+  deleteDoc,
+  where,
+  Timestamp
 } from 'firebase/firestore'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -197,13 +199,14 @@ export default function SuperAdminDashboard() {
     city: ''
   })
 
-  // Add state for selected city
-  const [selectedCity, setSelectedCity] = useState('');
-
-  // Add new state variables for editing donor details
-  const [isEditing, setIsEditing] = useState(false);
+  // State for donor edit/delete
+  const [isEditDonorModalOpen, setIsEditDonorModalOpen] = useState(false);
+  const [isDeleteDonorConfirmOpen, setIsDeleteDonorConfirmOpen] = useState(false);
+  const [selectedDonor, setSelectedDonor] = useState(null);
   const [editedDonorData, setEditedDonorData] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
   const [sameAsPermanent, setSameAsPermanent] = useState(false);
+  const [selectedCity, setSelectedCity] = useState('');
 
   // Main tab (sidebar) state (removing commented out code)
   const [activeTab, setActiveTab] = useState('requests')
@@ -685,20 +688,7 @@ export default function SuperAdminDashboard() {
     });
   };
 
-  // Add function to save donor changes
-  const handleSaveDonorChanges = async () => {
-    try {
-      const donorRef = doc(db, 'donors', selectedItem.id);
-      await updateDoc(donorRef, editedDonorData);
-      toast.success('Donor details updated successfully!');
-      setIsEditing(false);
-      // Update the selected item with new data
-      setSelectedItem(editedDonorData);
-    } catch (error) {
-      console.error('Error updating donor:', error);
-      toast.error('Failed to update donor details');
-    }
-  };
+
 
   // Add function to fetch donor data for a user by email
   const fetchUserDonorData = async (email) => {
@@ -787,6 +777,72 @@ export default function SuperAdminDashboard() {
   }
 
   // Add a function to open the donors modal
+  // Function to open the edit donor modal
+  const handleEditDonorClick = (donor) => {
+    const formattedDonor = { ...donor };
+
+    const formatDate = (dateValue) => {
+      if (!dateValue) return '';
+      try {
+        const date = dateValue.seconds ? new Date(dateValue.seconds * 1000) : new Date(dateValue);
+        return isNaN(date.getTime()) ? '' : date.toISOString().split('T')[0];
+      } catch (e) {
+        return '';
+      }
+    };
+
+    formattedDonor.lastDonationDate = formatDate(donor.lastDonationDate);
+    formattedDonor.DateOfBirth = formatDate(donor.DateOfBirth);
+
+    setSelectedDonor(donor);
+    setEditedDonorData(formattedDonor);
+    setIsEditDonorModalOpen(true);
+  };
+
+  // Function to open the delete confirmation dialog
+  const handleDeleteDonorClick = (donor) => {
+    setSelectedDonor(donor);
+    setIsDeleteDonorConfirmOpen(true);
+  };
+
+  // Function to handle the confirmed deletion of a donor
+  const handleConfirmDeleteDonor = async () => {
+    if (!selectedDonor) return;
+
+    try {
+      await deleteDoc(doc(db, 'donors', selectedDonor.id));
+      toast.success('Donor deleted successfully');
+      setIsDeleteDonorConfirmOpen(false);
+      setSelectedDonor(null);
+    } catch (error) {
+      console.error('Error deleting donor:', error);
+      toast.error('Failed to delete donor.');
+    }
+  };
+
+  // Function to save changes from the edit donor modal
+  const handleSaveDonorChanges = async () => {
+    if (!selectedDonor || !editedDonorData) return;
+
+    try {
+      const donorRef = doc(db, 'donors', selectedDonor.id);
+      
+      const dataToUpdate = { ...editedDonorData };
+      // Convert date string back to Firestore Timestamp
+      if (dataToUpdate.lastDonationDate && typeof dataToUpdate.lastDonationDate === 'string') {
+        dataToUpdate.lastDonationDate = Timestamp.fromDate(new Date(dataToUpdate.lastDonationDate));
+      }
+
+      await updateDoc(donorRef, dataToUpdate);
+      toast.success('Donor updated successfully');
+      setIsEditDonorModalOpen(false);
+      setSelectedDonor(null);
+    } catch (error) {
+      console.error('Error updating donor:', error);
+      toast.error('Failed to update donor.');
+    }
+  };
+
   const openDonorsModal = async (requestId) => {
     setLoadingDonors(true)
     try {
@@ -1466,9 +1522,9 @@ export default function SuperAdminDashboard() {
                         <td className="px-6 py-4">{donor.BloodGroup}</td>
                         <td className="px-6 py-4">{donor.MobileNumber}</td>
                         <td className="px-6 py-4">
-                          <Button onClick={() => openDetailsModal(donor, 'donor')} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition">
-                            More
-                          </Button>
+                          <Button onClick={() => openDetailsModal(donor, 'donor')} className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md transition-colors">View</Button>
+                          <Button onClick={() => handleEditDonorClick(donor)} className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-md transition-colors ml-2">Edit</Button>
+                          <Button onClick={() => handleDeleteDonorClick(donor)} className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md transition-colors ml-2">Delete</Button>
                         </td>
                       </tr>
                     ))}
@@ -2528,6 +2584,111 @@ export default function SuperAdminDashboard() {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Edit Donor Modal */}
+        <Dialog open={isEditDonorModalOpen} onOpenChange={setIsEditDonorModalOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Edit Donor Details</DialogTitle>
+              <DialogDescription>
+                Update the donor's information below. Click save when you're done.
+              </DialogDescription>
+            </DialogHeader>
+            {editedDonorData && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+                <div className="space-y-2">
+                  <label htmlFor="name">Name</label>
+                  <Input id="name" value={editedDonorData.Name || ''} onChange={(e) => handleDonorChange('Name', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="email">Email</label>
+                  <Input id="email" value={editedDonorData.Email || ''} disabled />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="bloodGroup">Blood Group</label>
+                  <Input id="bloodGroup" value={editedDonorData.BloodGroup || ''} onChange={(e) => handleDonorChange('BloodGroup', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="gender">Gender</label>
+                  <Input id="gender" value={editedDonorData.Gender || ''} onChange={(e) => handleDonorChange('Gender', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="mobileNumber">Mobile Number</label>
+                  <Input id="mobileNumber" value={editedDonorData.MobileNumber || ''} onChange={(e) => handleDonorChange('MobileNumber', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="whatsappNumber">Whatsapp Number</label>
+                  <Input id="whatsappNumber" value={editedDonorData.WhatsappNumber || ''} onChange={(e) => handleDonorChange('WhatsappNumber', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="residentCity">Resident City</label>
+                  <Select
+                    value={editedDonorData.ResidentCity || ''}
+                    onValueChange={(value) => handleDonorChange('ResidentCity', value)}
+                  >
+                    <SelectTrigger id="residentCity">
+                      <SelectValue placeholder="Select a city" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tamilNaduCities.map((city) => (
+                        <SelectItem key={city} value={city}>
+                          {city}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="permanentCity">Permanent City</label>
+                  <Select
+                    value={editedDonorData.PermanentCity || ''}
+                    onValueChange={(value) => handleDonorChange('PermanentCity', value)}
+                  >
+                    <SelectTrigger id="permanentCity">
+                      <SelectValue placeholder="Select a city" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tamilNaduCities.map((city) => (
+                        <SelectItem key={city} value={city}>
+                          {city}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="dateOfBirth">Date of Birth</label>
+                  <Input type="date" id="dateOfBirth" value={editedDonorData.DateOfBirth || ''} onChange={(e) => handleDonorChange('DateOfBirth', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="lastDonationDate">Last Donation Date</label>
+                  <Input type="date" id="lastDonationDate" value={editedDonorData.lastDonationDate || ''} onChange={(e) => handleDonorChange('lastDonationDate', e.target.value)} />
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditDonorModalOpen(false)}>Cancel</Button>
+              <Button onClick={handleSaveDonorChanges}>Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Donor Confirmation Modal */}
+        <Dialog open={isDeleteDonorConfirmOpen} onOpenChange={setIsDeleteDonorConfirmOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Are you sure?</DialogTitle>
+              <DialogDescription>
+                This action cannot be undone. This will permanently delete the donor's record.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDeleteDonorConfirmOpen(false)}>Cancel</Button>
+              <Button variant="destructive" onClick={handleConfirmDeleteDonor}>Confirm Delete</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
       </div>
     </div>
   )
