@@ -4,7 +4,7 @@ import { Heart, Users, Target, Award, CheckCircle, Calendar } from 'lucide-react
 import Navbar from '@/components/Navbar';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
+import { getFirestore, collection, query, where, getDocs,getCountFromServer } from 'firebase/firestore';
 import { getApp, getApps, initializeApp } from 'firebase/app';
 
 // Firebase configuration
@@ -42,10 +42,53 @@ const ValueCard = ({ icon: Icon, title, description }) => (
   </div>
 );
 
+const StatCard = ({ value, label, icon: Icon }) => (
+  <div className="bg-red-100 p-8 rounded-2xl shadow-lg text-center transform hover:scale-105 transition-transform duration-300">
+    <div className="w-20 h-20 mx-auto bg-white rounded-full flex items-center justify-center mb-4">
+      <Icon className="w-10 h-10 text-red-600" />
+    </div>
+    <h3 className="text-5xl font-bold text-red-700 mb-2">{value}</h3>
+    <p className="text-xl text-gray-700">{label}</p>
+  </div>
+);
+
 export default function About() {
   const router = useRouter();
   const { user } = useAuth();
   const [isDonor, setIsDonor] = useState(false);
+  const [stats, setStats] = useState({ donors: 0, requests: 0, unitsDonated: 0 });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const donorsCol = collection(db, 'donors');
+        const requestsCol = collection(db, 'requests');
+
+        const donorSnapshot = await getCountFromServer(donorsCol);
+        const requestSnapshot = await getDocs(requestsCol);
+
+        const totalDonors = donorSnapshot.data().count;
+        const totalRequests = requestSnapshot.size;
+
+        let totalUnitsDonated = 0;
+        requestSnapshot.forEach(doc => {
+          if (doc.data().UnitsDonated) {
+            totalUnitsDonated += parseInt(doc.data().UnitsDonated, 10);
+          }
+        });
+
+        setStats({
+          donors: totalDonors,
+          requests: totalRequests,
+          unitsDonated: totalUnitsDonated,
+        });
+      } catch (error) {
+        console.error("Error fetching stats:", error);
+      }
+    };
+
+    fetchStats();
+  }, []);
 
   useEffect(() => {
     const checkIfDonor = async () => {
@@ -87,6 +130,29 @@ export default function About() {
           <p className="text-xl md:text-2xl max-w-2xl mx-auto mb-8 animate-fade-in">
             Empowering communities through blood donation since 2023.
           </p>
+        </div>
+      </section>
+
+      {/* Stats Section */}
+      <section className="py-20 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <StatCard 
+              value={`${stats.donors}+`}
+              label="Donors Registered"
+              icon={Users} 
+            />
+            <StatCard 
+              value={`${stats.requests}+`}
+              label="Blood Requests Fulfilled"
+              icon={Heart}
+            />
+            <StatCard 
+              value={`${stats.unitsDonated}+`}
+              label="Units Donated"
+              icon={CheckCircle}
+            />
+          </div>
         </div>
       </section>
 
