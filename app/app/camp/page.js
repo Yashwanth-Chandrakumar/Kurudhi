@@ -300,6 +300,7 @@ const HostBloodCamp = () => {
 
   const [currentStep, setCurrentStep] = useState(0);
   const [submitStatus, setSubmitStatus] = useState({ type: '', message: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     // Step 1: Organizer Details
     organizationType: '',
@@ -405,7 +406,9 @@ const HostBloodCamp = () => {
     if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors);
       return;
-    };
+    }
+
+    setIsSubmitting(true);
   
     // Create Date objects directly from campStart and campEnd values.
     const campStart = new Date(formData.campStart);
@@ -458,6 +461,7 @@ const HostBloodCamp = () => {
         type: 'error',
         message: 'Failed to host camp. Please try again.'
       });
+      setIsSubmitting(false);
     }
   };
 
@@ -804,10 +808,10 @@ const HostBloodCamp = () => {
                   <Button
                     type="button"
                     onClick={handleSubmit}
-                    disabled={!isStepValid()}
-                    className="ml-auto bg-red-600 hover:bg-red-700 text-white disabled:bg-red-300"
+                    disabled={isSubmitting}
+                    className="w-full bg-red-600 text-white hover:bg-red-700 disabled:bg-gray-400"
                   >
-                    Submit Request
+                    {isSubmitting ? 'Submitting...' : 'Submit Request'}
                   </Button>
                 )}
               </div>
