@@ -224,7 +224,13 @@ export default function SuperAdminDashboard() {
   const [isEditCampModalOpen, setIsEditCampModalOpen] = useState(false)
   const [isDeleteCampConfirmOpen, setIsDeleteCampConfirmOpen] = useState(false)
   const [selectedCamp, setSelectedCamp] = useState(null)
-  const [editedCampData, setEditedCampData] = useState(null);
+  const [editedCampData, setEditedCampData] = useState(null)
+
+  // State for request edit/delete
+  const [isEditRequestModalOpen, setIsEditRequestModalOpen] = useState(false)
+  const [isDeleteRequestConfirmOpen, setIsDeleteRequestConfirmOpen] = useState(false)
+  const [requestToDelete, setRequestToDelete] = useState(null);
+  const [editedRequestData, setEditedRequestData] = useState(null);
 
   // Main tab (sidebar) state (removing commented out code)
   const [activeTab, setActiveTab] = useState('requests')
@@ -951,6 +957,53 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  const handleRequestChange = (field, value) => {
+    setEditedRequestData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleEditRequestClick = (request) => {
+    setEditedRequestData({ ...request });
+    setIsEditRequestModalOpen(true);
+  };
+
+  const handleSaveRequestChanges = async () => {
+    if (!editedRequestData) return;
+
+    const requestRef = doc(db, 'requests', editedRequestData.id);
+    try {
+      await updateDoc(requestRef, {
+        ...editedRequestData,
+        PatientAge: parseInt(editedRequestData.PatientAge, 10),
+        UnitsNeeded: parseInt(editedRequestData.UnitsNeeded, 10),
+      });
+      toast.success('Request updated successfully!');
+      setIsEditRequestModalOpen(false);
+    } catch (error) {
+      console.error('Error updating request: ', error);
+      toast.error('Failed to update request.');
+    }
+  };
+
+  // Function to open the delete confirmation dialog for a request
+  const handleDeleteRequestClick = (request) => {
+    setRequestToDelete(request);
+    setIsDeleteRequestConfirmOpen(true);
+  };
+
+  // Function to handle the confirmed deletion of a request
+  const handleConfirmDeleteRequest = async () => {
+    if (!requestToDelete) return;
+    try {
+      await deleteDoc(doc(db, 'requests', requestToDelete.id));
+      toast.success('Request deleted successfully');
+      setIsDeleteRequestConfirmOpen(false);
+      setRequestToDelete(null);
+    } catch (error) {
+      console.error('Error deleting request:', error);
+      toast.error('Failed to delete request.');
+    }
+  };
+
   const openDonorsModal = async (requestId) => {
     setLoadingDonors(true)
     try {
@@ -1272,6 +1325,23 @@ export default function SuperAdminDashboard() {
                             >
                               Cancelled Donors
                             </Button>
+                          )}
+                          {/* Add Edit and Delete buttons for ongoing requests */}
+                          {request.Verified === "accepted" && (
+                            <>
+                              <Button
+                                onClick={() => handleEditRequestClick(request)}
+                                className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded transition"
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                onClick={() => handleDeleteRequestClick(request)}
+                                className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded transition"
+                              >
+                                Delete
+                              </Button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -2924,6 +2994,137 @@ export default function SuperAdminDashboard() {
               <Button variant="destructive" onClick={handleConfirmDeleteCamp}>Confirm Delete</Button>
             </DialogFooter>
           </DialogContent>
+        </Dialog>
+
+        {/* Edit Request Modal */}
+        <Dialog open={isEditRequestModalOpen} onOpenChange={setIsEditRequestModalOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Edit Request Details</DialogTitle>
+              <DialogDescription>
+                Update the details for the request. Click save when you're done.
+              </DialogDescription>
+            </DialogHeader>
+            {editedRequestData && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4 max-h-[70vh] overflow-y-auto">
+                <div className="space-y-2">
+                  <Label>Patient Name</Label>
+                  <Input value={editedRequestData.PatientName || ''} onChange={(e) => handleRequestChange('PatientName', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Patient Age</Label>
+                  <Input type="number" value={editedRequestData.PatientAge || ''} onChange={(e) => handleRequestChange('PatientAge', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bloodGroup">Blood Group</Label>
+                  <Select
+                    id="bloodGroup"
+                    value={editedRequestData.BloodGroup || ''}
+                    onValueChange={(value) => handleRequestChange('BloodGroup', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Blood Group" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(group => (
+                        <SelectItem key={group} value={group}>{group}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="anyBloodGroupAccepted"
+                    checked={editedRequestData.AnyBloodGroupAccepted || false}
+                    onCheckedChange={(checked) => handleRequestChange('AnyBloodGroupAccepted', checked)}
+                  />
+                  <Label htmlFor="anyBloodGroupAccepted">Any Blood Group Accepted</Label>
+                </div>
+                <div className="space-y-2">
+                  <Label>Units Needed</Label>
+                  <Input type="number" value={editedRequestData.UnitsNeeded || ''} onChange={(e) => handleRequestChange('UnitsNeeded', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Hospital</Label>
+                  <Input value={editedRequestData.Hospital || ''} onChange={(e) => handleRequestChange('Hospital', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Attender Name</Label>
+                  <Input value={editedRequestData.AttenderName || ''} onChange={(e) => handleRequestChange('AttenderName', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Attender Mobile</Label>
+                  <Input value={editedRequestData.AttenderMobile || ''} onChange={(e) => handleRequestChange('AttenderMobile', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="state">State</Label>
+                  <Select
+                    id="state"
+                    value={editedRequestData.State || ''}
+                    onValueChange={(value) => handleRequestChange('State', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select State" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {indianStates.map(state => (
+                        <SelectItem key={state} value={state}>{state}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="city">City</Label>
+                  <Select
+                    id="city"
+                    value={editedRequestData.City || ''}
+                    onValueChange={(value) => handleRequestChange('City', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select City" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tamilNaduCities.map(city => (
+                        <SelectItem key={city} value={city}>{city}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Reason</Label>
+                  <Textarea value={editedRequestData.Reason || ''} onChange={(e) => handleRequestChange('Reason', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Emergency Level</Label>
+                  <Input value={editedRequestData.EmergencyLevel || ''} onChange={(e) => handleRequestChange('EmergencyLevel', e.target.value)} />
+                </div>
+                <div className="space-y-2 col-span-2">
+                  <Label>User ID (UUID)</Label>
+                  <Input value={editedRequestData.uuid || ''} disabled />
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditRequestModalOpen(false)}>Cancel</Button>
+              <Button onClick={handleSaveRequestChanges}>Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Request Confirmation Modal */}
+        <Dialog open={isDeleteRequestConfirmOpen} onOpenChange={setIsDeleteRequestConfirmOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Are you sure?</DialogTitle>
+                    <DialogDescription>
+                        This action cannot be undone. This will permanently delete the request record.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsDeleteRequestConfirmOpen(false)}>Cancel</Button>
+                    <Button variant="destructive" onClick={handleConfirmDeleteRequest}>Confirm Delete</Button>
+                </DialogFooter>
+            </DialogContent>
         </Dialog>
 
         {/* Delete User Confirmation Modal */}
