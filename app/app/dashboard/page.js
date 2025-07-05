@@ -299,16 +299,35 @@ export default function DashboardPage() {
       return () => unsubscribe();
     }, [user, request.id]);
 
-    const canDonate = () => {
-      if (!donorRecord?.lastDonationDate) return true;
-      
-      const lastDonation = new Date(donorRecord.lastDonationDate);
+    const getCooldownDetails = () => {
+      if (!donorRecord?.lastDonationDate) {
+        return { canDonate: true, remainingDays: 0 };
+      }
+
+      // Support Firestore Timestamp, Date string, or JS Date
+      let lastDonation;
+      if (typeof donorRecord.lastDonationDate === 'object' && typeof donorRecord.lastDonationDate.toDate === 'function') {
+        // Firestore Timestamp
+        lastDonation = donorRecord.lastDonationDate.toDate();
+      } else {
+        lastDonation = new Date(donorRecord.lastDonationDate);
+      }
+
+      // If parsing failed, allow donation to avoid blocking user erroneously
+      if (isNaN(lastDonation)) {
+        return { canDonate: true, remainingDays: 0 };
+      }
+
       const currentDate = new Date();
       const diffTime = Math.abs(currentDate - lastDonation);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      return diffDays >= 90;
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      const cooldownPeriod = 90;
+      const canDonate = diffDays >= cooldownPeriod;
+      const remainingDays = canDonate ? 0 : cooldownPeriod - diffDays;
+      return { canDonate, remainingDays };
     };
+
+    const { canDonate, remainingDays } = getCooldownDetails();
 
     // Generate a 6-digit OTP
     const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
@@ -379,8 +398,8 @@ export default function DashboardPage() {
         return;
       }
       
-      if (!canDonate()) {
-        alert("You cannot donate at this time. You must wait 90 days since your last donation.");
+      if (!canDonate) {
+        alert(`You can donate again in ${remainingDays} day${remainingDays === 1 ? '' : 's'}.`);
         return;
       }
       
@@ -496,8 +515,8 @@ export default function DashboardPage() {
                 <AlertCircle className="w-5 h-5 mr-2" />
                 <span>Action Required: Verify Donation</span>
               </div>
-              {!canDonate() ? (
-                <p className="text-sm text-red-600 font-medium">You cannot complete this donation as you have donated within the last 90 days.</p>
+              {!canDonate ? (
+                <p className="text-sm text-red-600 font-medium">You can donate again in {remainingDays} day{remainingDays === 1 ? '' : 's'}.</p>
               ) : (
                 <>
                   <p className="text-sm text-gray-600 mb-3">
@@ -521,9 +540,9 @@ export default function DashboardPage() {
           <div className="p-4 bg-gray-50 border-t">
             <Button 
               onClick={handleDonateClick} 
-              disabled={!canDonate() || request.Verified === 'completed'}
-              className={`w-full font-bold py-3 transition-all ${!canDonate() || request.Verified === 'completed' ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 text-white'}`}>
-              {request.Verified === 'completed' ? 'Request Fulfilled' : canDonate() ? 'I want to Donate' : 'Cannot Donate (90-day cooldown)'}
+              disabled={!canDonate || request.Verified === 'completed'}
+              className={`w-full font-bold py-3 transition-all ${!canDonate || request.Verified === 'completed' ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 text-white'}`}>
+              {request.Verified === 'completed' ? 'Request Fulfilled' : canDonate ? 'I want to Donate' : `Donate in ${remainingDays} day${remainingDays === 1 ? '' : 's'}`}
             </Button>
           </div>
         );
