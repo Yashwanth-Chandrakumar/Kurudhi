@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -68,6 +69,15 @@ const tamilNaduCities = [
   "Pudukkottai", "Rajapalayam", "Ramanathapuram", "Ranipet", "Salem", "Sivakasi", 
   "Thanjavur", "Theni", "Thoothukudi", "Tiruchirappalli", "Tirunelveli", "Tiruppur", 
   "Tiruvallur", "Tiruvannamalai", "Tiruvarur", "Vellore", "Viluppuram", "Virudhunagar"
+];
+
+const indianStates = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
+  "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya",
+  "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim",
+  "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand",
+  "West Bengal"
 ];
 
 export default function SuperAdminDashboard() {
@@ -208,7 +218,13 @@ export default function SuperAdminDashboard() {
   const [editedDonorData, setEditedDonorData] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [sameAsPermanent, setSameAsPermanent] = useState(false);
-  const [selectedCity, setSelectedCity] = useState('');
+  const [selectedCity, setSelectedCity] = useState('')
+
+  // State for camp edit/delete
+  const [isEditCampModalOpen, setIsEditCampModalOpen] = useState(false)
+  const [isDeleteCampConfirmOpen, setIsDeleteCampConfirmOpen] = useState(false)
+  const [selectedCamp, setSelectedCamp] = useState(null)
+  const [editedCampData, setEditedCampData] = useState(null);
 
   // Main tab (sidebar) state (removing commented out code)
   const [activeTab, setActiveTab] = useState('requests')
@@ -874,6 +890,64 @@ export default function SuperAdminDashboard() {
     } catch (error) {
       console.error('Error updating donor:', error);
       toast.error('Failed to update donor.');
+    }
+  };
+
+  // Function to open the edit camp modal
+  const handleEditCampClick = (camp) => {
+    setSelectedCamp(camp);
+    // Format dates for datetime-local input
+    const formattedCamp = {
+      ...camp,
+      CampStart: camp.CampStart ? new Date(camp.CampStart).toISOString().slice(0, 16) : '',
+      CampEnd: camp.CampEnd ? new Date(camp.CampEnd).toISOString().slice(0, 16) : '',
+    };
+    setEditedCampData(formattedCamp);
+    setIsEditCampModalOpen(true);
+  };
+
+  // Function to handle camp data changes in the edit modal
+  const handleCampChange = (field, value) => {
+    setEditedCampData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Function to save changes from the edit camp modal
+  const handleSaveCampChanges = async () => {
+    if (!selectedCamp) return;
+    try {
+      const campRef = doc(db, 'camps', selectedCamp.id);
+      // Convert TargetBloodUnits to number before saving
+      const dataToUpdate = {
+        ...editedCampData,
+        TargetBloodUnits: parseInt(editedCampData.TargetBloodUnits, 10),
+      };
+      await updateDoc(campRef, dataToUpdate);
+      toast.success('Camp details updated successfully');
+      setIsEditCampModalOpen(false);
+      setSelectedCamp(null);
+    } catch (error) {
+      console.error('Error updating camp:', error);
+      toast.error('Failed to update camp details.');
+    }
+  };
+
+  // Function to open the delete confirmation dialog for a camp
+  const handleDeleteCampClick = (camp) => {
+    setSelectedCamp(camp);
+    setIsDeleteCampConfirmOpen(true);
+  };
+
+  // Function to handle the confirmed deletion of a camp
+  const handleConfirmDeleteCamp = async () => {
+    if (!selectedCamp) return;
+    try {
+      await deleteDoc(doc(db, 'camps', selectedCamp.id));
+      toast.success('Camp deleted successfully');
+      setIsDeleteCampConfirmOpen(false);
+      setSelectedCamp(null);
+    } catch (error) {
+      console.error('Error deleting camp:', error);
+      toast.error('Failed to delete camp.');
     }
   };
 
@@ -1586,10 +1660,10 @@ export default function SuperAdminDashboard() {
                       </td>
                       <td className="px-6 py-4">{camp.CampLocation}</td>
                       <td className="px-6 py-4 capitalize">{camp.CampStatus}</td>
-                      <td className="px-6 py-4">
-                        <Button onClick={() => openDetailsModal(camp, 'camp')} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition">
-                          More
-                        </Button>
+                      <td className="py-2 px-4 border-b text-center space-x-2">
+                        <Button onClick={() => openDetailsModal(camp, 'camp')} size="sm">Details</Button>
+                        <Button onClick={() => handleEditCampClick(camp)} size="sm" variant="outline">Edit</Button>
+                        <Button onClick={() => handleDeleteCampClick(camp)} size="sm" variant="destructive">Delete</Button>
                       </td>
                     </tr>
                   ))}
@@ -2720,6 +2794,134 @@ export default function SuperAdminDashboard() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsDeleteDonorConfirmOpen(false)}>Cancel</Button>
               <Button variant="destructive" onClick={handleConfirmDeleteDonor}>Confirm Delete</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Camp Modal */}
+        <Dialog open={isEditCampModalOpen} onOpenChange={setIsEditCampModalOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Edit Camp Details</DialogTitle>
+              <DialogDescription>
+                Update the details for the camp. Click save when you're done.
+              </DialogDescription>
+            </DialogHeader>
+            {editedCampData && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4 max-h-[70vh] overflow-y-auto">
+                <div className="space-y-2">
+                  <Label>Organization Type</Label>
+                  <Select value={editedCampData.OrganizationType || ''} onValueChange={(value) => handleCampChange('OrganizationType', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select organization type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Rotary">Rotary</SelectItem>
+                      <SelectItem value="Rotaract">Rotaract</SelectItem>
+                      <SelectItem value="NGO">NGO</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Organization Name</Label>
+                  <Input value={editedCampData.OrganizationName || ''} onChange={(e) => handleCampChange('OrganizationName', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Organizer Name</Label>
+                  <Input value={editedCampData.OrganizerName || ''} onChange={(e) => handleCampChange('OrganizerName', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Organizer Mobile</Label>
+                  <Input value={editedCampData.OrganizerMobile || ''} onChange={(e) => handleCampChange('OrganizerMobile', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Organizer Email</Label>
+                  <Input type="email" value={editedCampData.OrganizerEmail || ''} onChange={(e) => handleCampChange('OrganizerEmail', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Alternative Contact</Label>
+                  <Input value={editedCampData.AlternativeContact || ''} onChange={(e) => handleCampChange('AlternativeContact', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Camp Name</Label>
+                  <Input value={editedCampData.CampName || ''} onChange={(e) => handleCampChange('CampName', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Camp Location</Label>
+                  <Input value={editedCampData.CampLocation || ''} onChange={(e) => handleCampChange('CampLocation', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Camp State</Label>
+                  <Select value={editedCampData.CampState || ''} onValueChange={(value) => handleCampChange('CampState', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {indianStates.map((state) => (
+                        <SelectItem key={state} value={state}>{state}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Camp City</Label>
+                  {editedCampData.CampState === 'Tamil Nadu' ? (
+                    <Select value={editedCampData.CampCity || ''} onValueChange={(value) => handleCampChange('CampCity', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select city" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {tamilNaduCities.map((city) => (
+                          <SelectItem key={city} value={city}>{city}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input value={editedCampData.CampCity || ''} onChange={(e) => handleCampChange('CampCity', e.target.value)} />
+                  )}
+                </div>
+                 <div className="space-y-2">
+                  <Label>Camp Country</Label>
+                  <Input value={editedCampData.CampCountry || ''} onChange={(e) => handleCampChange('CampCountry', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Camp Start (Date & Time)</Label>
+                  <Input type="datetime-local" value={editedCampData.CampStart || ''} onChange={(e) => handleCampChange('CampStart', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Camp End (Date & Time)</Label>
+                  <Input type="datetime-local" value={editedCampData.CampEnd || ''} onChange={(e) => handleCampChange('CampEnd', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Target Blood Units</Label>
+                  <Input type="number" value={editedCampData.TargetBloodUnits || ''} onChange={(e) => handleCampChange('TargetBloodUnits', e.target.value)} />
+                </div>
+                <div className="space-y-2 col-span-2">
+                  <Label>Camp Description</Label>
+                  <Textarea value={editedCampData.CampDescription || ''} onChange={(e) => handleCampChange('CampDescription', e.target.value)} />
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditCampModalOpen(false)}>Cancel</Button>
+              <Button onClick={handleSaveCampChanges}>Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Camp Confirmation Modal */}
+        <Dialog open={isDeleteCampConfirmOpen} onOpenChange={setIsDeleteCampConfirmOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Are you sure?</DialogTitle>
+              <DialogDescription>
+                This action cannot be undone. This will permanently delete the camp record.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDeleteCampConfirmOpen(false)}>Cancel</Button>
+              <Button variant="destructive" onClick={handleConfirmDeleteCamp}>Confirm Delete</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
