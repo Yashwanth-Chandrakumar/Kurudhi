@@ -449,7 +449,7 @@ const HostBloodCamp = () => {
       });
   
       setTimeout(() => {
-        router.push("/admin");
+        router.push("/dashboard");
       }, 2000);
   
     } catch (error) {

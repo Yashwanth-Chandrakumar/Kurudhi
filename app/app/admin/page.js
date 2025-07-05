@@ -746,6 +746,9 @@ export default function AdminDashboard() {
       {/* Mobile Sidebar */}
       <Dialog open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
         <DialogContent className="w-72 bg-gradient-to-b from-blue-900 to-gray-800 text-white p-6">
+            <DialogHeader>
+              <DialogTitle className="sr-only">Mobile Sidebar Menu</DialogTitle>
+            </DialogHeader>
           <div className="mb-6">
             <h2 className="text-3xl font-extrabold">Admin Dashboard</h2>
             <p className="text-sm opacity-70">Manage your operations</p>

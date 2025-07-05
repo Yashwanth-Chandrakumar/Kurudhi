@@ -1015,6 +1015,10 @@ export default function SuperAdminDashboard() {
       {/* Mobile Sidebar - Update to include Users */}
       <Dialog open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
         <DialogContent className="w-72 bg-gradient-to-b from-blue-900 to-gray-800 text-white p-6">
+            <DialogHeader>
+              {/* Visually hidden title for accessibility */}
+              <DialogTitle className="sr-only">Mobile Sidebar Menu</DialogTitle>
+            </DialogHeader>
           <div className="mb-6">
             <h2 className="text-3xl font-extrabold">SuperAdmin Dashboard</h2>
             <p className="text-sm opacity-70">Manage everything</p>
