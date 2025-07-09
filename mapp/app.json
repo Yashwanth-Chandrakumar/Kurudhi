@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "mapp",
+    "slug": "mapp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+      "build": {
+        "production": {
+          "android": {
+            "buildType": "apk"
+          }
+        }
+      },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.kurudhi.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-web-browser"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "8107cb70-6452-4b48-a399-1554894ed83d"
+      }
+    }
+  }
+}
