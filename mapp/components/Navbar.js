@@ -21,13 +21,13 @@ import { db } from '../firebase';
 
 /*
   Complete React Native Navbar Component
-  Replicates all functionality from the web version:
+  Updated layout: Menu icon (left) - Logo (center) - Profile icon (right)
   • Role-based navigation (user/admin/superadmin)
   • Donor status checking
   • Profile picture display
   • Encrypted UID handling
   • Logout confirmation
-  • Responsive menu system
+  • Separate menu and profile dropdowns
 */
 
 export default function Navbar({ 
@@ -35,7 +35,8 @@ export default function Navbar({
   currentRoute = 'home' // helps with active state highlighting
 }) {
   const { user, signOut } = useContext(AuthContext);
-  const [isOpen, setIsOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [userRole, setUserRole] = useState(null);
   const [isDonor, setIsDonor] = useState(true); // Default to true to hide "Become a Donor"
   const [profilePicture, setProfilePicture] = useState(null);
@@ -121,15 +122,21 @@ export default function Navbar({
     try {
       await signOut();
       setShowLogoutConfirm(false);
-      setIsOpen(false);
+      setIsProfileOpen(false);
+      setIsMenuOpen(false);
       onNavigate('signin');
     } catch (error) {
       console.error('Error during logout:', error);
     }
   };
 
-  const closeAndNavigate = (destination) => {
-    setIsOpen(false);
+  const closeMenuAndNavigate = (destination) => {
+    setIsMenuOpen(false);
+    onNavigate(destination);
+  };
+
+  const closeProfileAndNavigate = (destination) => {
+    setIsProfileOpen(false);
     onNavigate(destination);
   };
 
@@ -159,15 +166,22 @@ export default function Navbar({
       <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
         <StatusBar barStyle="light-content" backgroundColor="#b91c1c" />
         <View style={styles.headerContent}>
-          <TouchableOpacity onPress={() => onNavigate('home')}>
-            <Image source={require('../assets/kk.png')} style={styles.logo} />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            onPress={() => onNavigate('signin')}
-            style={styles.loginButton}
-          >
-            <Text style={styles.loginButtonText}>Login / Sign Up</Text>
-          </TouchableOpacity>
+          <View style={styles.leftSection}>
+            {/* Empty space for alignment */}
+          </View>
+          <View style={styles.centerSection}>
+            <TouchableOpacity onPress={() => onNavigate('home')}>
+              <Image source={require('../assets/kk.png')} style={styles.logo} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.rightSection}>
+            <TouchableOpacity 
+              onPress={() => onNavigate('signin')}
+              style={styles.loginButton}
+            >
+              <Text style={styles.loginButtonText}>Login</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
@@ -177,31 +191,52 @@ export default function Navbar({
     <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
       <StatusBar barStyle="light-content" backgroundColor="#b91c1c" />
       <View style={styles.headerContent}>
-        {/* Logo */}
-        <TouchableOpacity onPress={() => onNavigate('home')}>
-          <Image source={require('../assets/kk.png')} style={styles.logo} />
-        </TouchableOpacity>
+        {/* Left Section - Menu Icon */}
+        <View style={styles.leftSection}>
+          <TouchableOpacity onPress={() => setIsMenuOpen(!isMenuOpen)} style={styles.iconButton}>
+            <Entypo name="menu" size={28} color="#fff" />
+          </TouchableOpacity>
+        </View>
 
-        {/* Menu Button */}
-        <TouchableOpacity onPress={() => setIsOpen(!isOpen)} style={styles.menuButton}>
-          <Entypo name="menu" size={28} color="#fff" />
-        </TouchableOpacity>
+        {/* Center Section - Logo */}
+        <View style={styles.centerSection}>
+          <TouchableOpacity onPress={() => onNavigate('home')}>
+            <Image source={require('../assets/kk.png')} style={styles.logo} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Right Section - Profile Icon */}
+        <View style={styles.rightSection}>
+          <TouchableOpacity onPress={() => setIsProfileOpen(!isProfileOpen)} style={styles.iconButton}>
+            {profilePicture ? (
+              <Image source={{ uri: profilePicture }} style={styles.profileImageSmall} />
+            ) : (
+              <View style={styles.profileImagePlaceholderSmall}>
+                <Feather name="user" size={20} color="#b91c1c" />
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Slide-down Menu Modal */}
+      {/* Navigation Menu Modal */}
       <Modal
-        visible={isOpen}
+        visible={isMenuOpen}
         animationType="fade"
         transparent={true}
-        onRequestClose={() => setIsOpen(false)}
+        onRequestClose={() => setIsMenuOpen(false)}
       >
         <TouchableOpacity 
           style={styles.modalOverlay} 
           activeOpacity={1}
-          onPress={() => setIsOpen(false)}
+          onPress={() => setIsMenuOpen(false)}
         >
           <View style={[styles.menuContainer, { top: insets.top + 60 }]}>
             <ScrollView style={styles.menuScroll}>
+              <View style={styles.menuHeader}>
+                <Text style={styles.menuTitle}>Navigation</Text>
+              </View>
+              
               {/* Navigation Items */}
               {navigationItems.map((item) => {
                 if (!item.show) return null;
@@ -209,18 +244,33 @@ export default function Navbar({
                   <MenuItem
                     key={item.key}
                     label={item.label}
-                    onPress={() => closeAndNavigate(item.key)}
+                    onPress={() => closeMenuAndNavigate(item.key)}
                     isActive={currentRoute === item.key}
                   />
                 );
               })}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
-              {/* Divider */}
-              <View style={styles.divider} />
-
-              {/* Profile Section */}
-              <View style={styles.profileSection}>
-                <View style={styles.profileHeader}>
+      {/* Profile Menu Modal */}
+      <Modal
+        visible={isProfileOpen}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setIsProfileOpen(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1}
+          onPress={() => setIsProfileOpen(false)}
+        >
+          <View style={[styles.profileMenuContainer, { top: insets.top + 60 }]}>
+            <ScrollView style={styles.menuScroll}>
+              {/* Profile Header */}
+              <View style={styles.profileHeader}>
+                <View style={styles.profileHeaderContent}>
                   {profilePicture ? (
                     <Image source={{ uri: profilePicture }} style={styles.profileImage} />
                   ) : (
@@ -230,25 +280,26 @@ export default function Navbar({
                   )}
                   <Text style={styles.profileEmail}>{user.email}</Text>
                 </View>
-
-                {/* Profile Menu Items */}
-                {profileItems.map((item) => {
-                  if (!item.show) return null;
-                  return (
-                    <MenuItem
-                      key={item.key}
-                      label={item.label}
-                      onPress={() => closeAndNavigate(item.key)}
-                      isActive={currentRoute === item.key}
-                    />
-                  );
-                })}
-
-                {/* Logout Button */}
-                <TouchableOpacity style={styles.logoutButton} onPress={showLogoutAlert}>
-                  <Text style={styles.logoutButtonText}>Logout</Text>
-                </TouchableOpacity>
               </View>
+
+              {/* Profile Menu Items */}
+              {profileItems.map((item) => {
+                if (!item.show) return null;
+                return (
+                  <MenuItem
+                    key={item.key}
+                    label={item.label}
+                    onPress={() => closeProfileAndNavigate(item.key)}
+                    isActive={currentRoute === item.key}
+                  />
+                );
+              })}
+
+              {/* Logout Button */}
+              <TouchableOpacity style={styles.logoutButton} onPress={showLogoutAlert}>
+                <Feather name="log-out" size={20} color="#fff" style={styles.logoutIcon} />
+                <Text style={styles.logoutButtonText}>Logout</Text>
+              </TouchableOpacity>
             </ScrollView>
           </View>
         </TouchableOpacity>
@@ -316,13 +367,40 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     minHeight: 60,
   },
+  leftSection: {
+    flex: 1,
+    alignItems: 'flex-start',
+  },
+  centerSection: {
+    flex: 2,
+    alignItems: 'center',
+  },
+  rightSection: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
   logo: {
     height: 40,
     width: 120,
     resizeMode: 'contain',
   },
-  menuButton: {
+  iconButton: {
     padding: 8,
+  },
+  profileImageSmall: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  profileImagePlaceholderSmall: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   loginButton: {
     backgroundColor: '#fff',
@@ -344,7 +422,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: '#fff',
-    maxHeight: '80%',
+    maxHeight: '70%',
     borderBottomLeftRadius: 12,
     borderBottomRightRadius: 12,
     shadowColor: '#000',
@@ -353,8 +431,33 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 8,
   },
+  profileMenuContainer: {
+    position: 'absolute',
+    right: 16,
+    backgroundColor: '#fff',
+    maxHeight: '70%',
+    width: 280,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
+  },
   menuScroll: {
     maxHeight: '100%',
+  },
+  menuHeader: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    backgroundColor: '#f8f9fa',
+  },
+  menuTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#b91c1c',
   },
   menuItem: {
     paddingVertical: 16,
@@ -376,21 +479,15 @@ const styles = StyleSheet.create({
     color: '#b91c1c',
     fontWeight: '600',
   },
-  divider: {
-    height: 1,
-    backgroundColor: '#e0e0e0',
-    marginVertical: 8,
-  },
-  profileSection: {
-    padding: 16,
-  },
   profileHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 16,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
+    backgroundColor: '#f8f9fa',
+  },
+  profileHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   profileImage: {
     width: 40,
@@ -419,6 +516,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 16,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  logoutIcon: {
+    marginRight: 8,
   },
   logoutButtonText: {
     color: '#fff',
