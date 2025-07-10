@@ -1,31 +1,12 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useContext } from 'react';
 import { View, TextInput, Button, Text, StyleSheet } from 'react-native';
-import { signInWithCredential, GoogleAuthProvider } from 'firebase/auth';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
-import { auth } from '../firebase';
 import { AuthContext } from '../AuthContext';
-
-WebBrowser.maybeCompleteAuthSession();
 
 export default function SignIn({ switchToSignUp }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const { signIn } = useContext(AuthContext);
-
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    webClientId: "936520747934-8q22uvfds3ms89gcfqqpdhbru1bb8r26.apps.googleusercontent.com",
-    androidClientId:"543895909406-5sbeo9tldmehmrhko0mtpa6id3cn2fuo.apps.googleusercontent.com"
-  });
-
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const { id_token } = response.params;
-      const credential = GoogleAuthProvider.credential(id_token);
-      signInWithCredential(auth, credential).catch(err => setError(err.message));
-    }
-  }, [response]);
 
   const handleSignIn = async () => {
     try {
@@ -56,7 +37,6 @@ export default function SignIn({ switchToSignUp }) {
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <Button title="Sign In" onPress={handleSignIn} />
-      <Button title="Sign in with Google" onPress={() => promptAsync()} disabled={!request} />
       <Button title="Switch to Sign Up" onPress={switchToSignUp} />
     </View>
   );

@@ -4,6 +4,19 @@ import { AuthContext, AuthProvider } from './AuthContext';
 import SignIn from './pages/signin';
 import SignUp from './pages/signup';
 
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  text: {
+    fontSize: 18,
+    marginBottom: 10,
+  },
+});
+
 function AppContent() {
   const { user, signOut } = useContext(AuthContext);
   const [showSignup, setShowSignup] = useState(false);
