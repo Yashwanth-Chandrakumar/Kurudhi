@@ -6,8 +6,8 @@ import { AuthContext, AuthProvider } from './AuthContext';
 import SignIn from './pages/signin';
 import SignUp from './pages/signup';
 import Dashboard from './pages/dashboard';
-import NewDonor from './pages/newdonor';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { RequestDonor } from './pages/needdonor';
 
 const Stack = createStackNavigator();
 
@@ -20,7 +20,9 @@ function AppNavigator() {
         {user ? (
           <>
             <Stack.Screen name="Dashboard" component={Dashboard} options={{ headerShown: false }} />
-            <Stack.Screen name="NewDonor" component={NewDonor} />
+            <Stack.Screen name="needdonor" component={RequestDonor} options={{ headerShown: false }} />
+          
+          
           </>
         ) : (
           <>

@@ -462,7 +462,6 @@ function DonorRequestCard({ request, donorRecord, user, onRefresh }) {
 export default function Dashboard({ navigation }) {
   const handleNavigate = (screen) => {
     if (screen === 'home') {
-      // Already on the dashboard, so do nothing or refresh
     } else if (screen === 'becomeDonor') {
       navigation.navigate('NewDonor');
     } else {

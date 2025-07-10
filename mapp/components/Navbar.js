@@ -146,11 +146,8 @@ export default function Navbar({
 
   const navigationItems = [
     { key: 'home', label: 'Home', show: true },
-    { key: 'dashboard', label: 'Dashboard', show: true },
-    { key: 'about', label: 'About', show: true },
     { key: 'newdonor', label: 'Become a Donor', show: user && !isDonor },
     { key: 'needdonor', label: 'Require a Donor', show: true },
-    { key: 'camp', label: 'Host a Camp', show: true },
     { key: 'myrequests', label: 'My Requests', show: !!user },
   ];
 
@@ -294,7 +291,22 @@ export default function Navbar({
                   />
                 );
               })}
-
+              {userRole === 'user' && (
+                <>
+                  {!isDonor && (
+                    <MenuItem 
+                      label="Become a Donor" 
+                      onPress={() => closeMenuAndNavigate('donor-registration')}
+                      isActive={currentRoute === 'donor-registration'}
+                    />
+                  )}
+                  <MenuItem 
+                    label="Require a Donor" 
+                    onPress={() => closeMenuAndNavigate('needdonor')}
+                    isActive={currentRoute === 'needdonor'}
+                  />
+                </>
+              )}
               {/* Logout Button */}
               <TouchableOpacity style={styles.logoutButton} onPress={showLogoutAlert}>
                 <Feather name="log-out" size={20} color="#fff" style={styles.logoutIcon} />
