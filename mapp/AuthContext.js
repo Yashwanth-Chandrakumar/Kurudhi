@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect } from 'react';
-import { auth } from './firebase';
+import { auth, db } from './firebase'; // Assuming db is exported from firebase.js
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 
 export const AuthContext = createContext();
 
@@ -18,8 +19,20 @@ export const AuthProvider = ({ children }) => {
     return signInWithEmailAndPassword(auth, email, password);
   };
 
-  const signUp = (email, password) => {
-    return createUserWithEmailAndPassword(auth, email, password);
+  const signUp = async (firstName, lastName, dob, email, password) => {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    // Save additional user data to Firestore
+    await setDoc(doc(db, "users", user.uid), {
+      firstName,
+      lastName,
+      dob,
+      email,
+      uid: user.uid
+    });
+
+    return userCredential;
   };
 
   const signOut = () => {

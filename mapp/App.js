@@ -1,45 +1,44 @@
-import React, { useContext, useState } from 'react';
-import { View, Text, StyleSheet, Button } from 'react-native';
+import 'react-native-gesture-handler';
+import React, { useContext } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
 import { AuthContext, AuthProvider } from './AuthContext';
 import SignIn from './pages/signin';
 import SignUp from './pages/signup';
+import Dashboard from './pages/dashboard';
+import NewDonor from './pages/newdonor';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  text: {
-    fontSize: 18,
-    marginBottom: 10,
-  },
-});
+const Stack = createStackNavigator();
 
-function AppContent() {
-  const { user, signOut } = useContext(AuthContext);
-  const [showSignup, setShowSignup] = useState(false);
-
-  if (!user) {
-    return showSignup
-      ? <SignUp switchToSignIn={() => setShowSignup(false)} />
-      : <SignIn switchToSignUp={() => setShowSignup(true)} />;
-  }
+function AppNavigator() {
+  const { user } = useContext(AuthContext);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.text}>Welcome, {user.email}</Text>
-      <Text style={styles.text}>This is your home page with static data.</Text>
-      <Button title="Sign Out" onPress={signOut} />
-    </View>
+    <NavigationContainer>
+      <Stack.Navigator>
+        {user ? (
+          <>
+            <Stack.Screen name="Dashboard" component={Dashboard} options={{ headerShown: false }} />
+            <Stack.Screen name="NewDonor" component={NewDonor} />
+          </>
+        ) : (
+          <>
+            <Stack.Screen name="SignIn" component={SignIn} options={{ headerShown: false }} />
+            <Stack.Screen name="SignUp" component={SignUp} options={{ headerShown: false }} />
+          </>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <AppNavigator />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
