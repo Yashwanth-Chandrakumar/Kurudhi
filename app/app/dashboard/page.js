@@ -268,7 +268,7 @@ export default function DashboardPage() {
     useEffect(() => {
       const refreshDonationStatus = () => {
         // If user has recently donated elsewhere, and has a pending donation here
-        if (donation && !donation.donorOtpVerified && !canDonate()) {
+        if (donation && !donation.donorOtpVerified && !canDonate) {
           // Update the UI immediately (we don't update the database as the donation record remains valid,
           // but the UI will show it can't be completed now)
           console.log("Donation in progress but user cannot donate now due to recent donation elsewhere");
@@ -504,7 +504,7 @@ export default function DashboardPage() {
                 <span>Awaiting Requester Confirmation</span>
               </div>
               <p className="text-sm text-blue-700 mt-2">
-                Your part is done! Please ensure the requester confirms the donation with their OTP. Your OTP was: <strong>{donation.donorOtp}</strong>
+                Your part is done! Please ensure the requester confirms the donation with their OTP. Give this OTP to the requester: <strong>{donation.donorOtp}</strong>
               </p>
             </div>
           );

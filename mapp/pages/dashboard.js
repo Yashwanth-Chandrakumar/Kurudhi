@@ -29,7 +29,7 @@ import {
 import { AuthContext } from '../AuthContext';
 import { db } from '../firebase';
 import { Feather } from '@expo/vector-icons';
-import Navbar from '../components/Navbar';
+
 
 const { width } = Dimensions.get('window');
 const COOLDOWN_DAYS = 90;
@@ -309,7 +309,7 @@ function DonorRequestCard({ request, donorRecord, user, onRefresh }) {
         <View style={styles.waitingContainer}>
           <Feather name="clock" size={20} color="#3b82f6" />
           <Text style={styles.waitingText}>Awaiting Requester Confirmation</Text>
-          <Text style={styles.otpText}>Your OTP was: {donation.donorOtp}</Text>
+          <Text style={styles.otpText}>Tell this OTP to the requester: {donation.donorOtp}</Text>
         </View>
       );
     }
@@ -624,7 +624,7 @@ export default function Dashboard({ navigation }) {
   if (!donorRecord) {
     return (
       <View style={styles.container}>
-        <Navbar onNavigate={handleNavigate} />
+        
         <View style={styles.notRegisteredContainer}>
           <Feather name="user-x" size={48} color="#ef4444" />
           <Text style={styles.notRegisteredText}>
@@ -643,7 +643,7 @@ export default function Dashboard({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <Navbar onNavigate={handleNavigate} />
+      
       <ScrollView style={styles.container}>
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         <View style={styles.scrollContent}>

@@ -820,3 +820,269 @@ const RequestDonor = () => {
 };
 
 export default RequestDonor;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  header: {
+    backgroundColor: '#dc2626',
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    textAlign: 'center',
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    margin: 16,
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  
+  // Stepper Styles
+  stepperContainer: {
+    marginBottom: 30,
+  },
+  progressBar: {
+    height: 4,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 2,
+    marginBottom: 20,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#dc2626',
+    borderRadius: 2,
+  },
+  stepsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  stepItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  stepCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  stepCircleActive: {
+    backgroundColor: '#dc2626',
+  },
+  stepCircleInactive: {
+    backgroundColor: '#e5e7eb',
+  },
+  stepNumber: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  stepNumberActive: {
+    color: '#ffffff',
+  },
+  stepNumberInactive: {
+    color: '#6b7280',
+  },
+  stepLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    textAlign: 'center',
+    paddingHorizontal: 4,
+  },
+  
+  // Form Styles
+  stepContainer: {
+    marginBottom: 20,
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#ffffff',
+    color: '#111827',
+  },
+  inputError: {
+    borderColor: '#ef4444',
+  },
+  textArea: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#ffffff',
+    color: '#111827',
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    backgroundColor: '#ffffff',
+    overflow: 'hidden',
+  },
+  picker: {
+    height: 50,
+    color: '#111827',
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 14,
+    marginTop: 4,
+  },
+  
+  // Checkbox Styles
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+    borderRadius: 4,
+    marginRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#dc2626',
+    borderColor: '#dc2626',
+  },
+  checkboxText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  checkboxLabel: {
+    fontSize: 14,
+    color: '#374151',
+    flex: 1,
+  },
+  
+  // Review Styles
+  reviewContainer: {
+    marginBottom: 20,
+  },
+  reviewTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 20,
+  },
+  reviewContent: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+    padding: 16,
+  },
+  reviewRow: {
+    flexDirection: 'row',
+    marginBottom: 12,
+    alignItems: 'flex-start',
+  },
+  reviewLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6b7280',
+    width: 120,
+    marginRight: 12,
+  },
+  reviewValue: {
+    fontSize: 14,
+    color: '#111827',
+    flex: 1,
+  },
+  
+  // Button Styles
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  previousButton: {
+    flex: 1,
+    backgroundColor: '#6b7280',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginRight: 10,
+  },
+  previousButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  nextButton: {
+    flex: 1,
+    backgroundColor: '#dc2626',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginLeft: 10,
+  },
+  nextButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  submitButton: {
+    flex: 1,
+    backgroundColor: '#059669',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginLeft: 10,
+  },
+  submitButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  disabledButton: {
+    backgroundColor: '#9ca3af',
+    opacity: 0.6,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

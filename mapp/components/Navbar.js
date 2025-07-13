@@ -31,7 +31,7 @@ import { db } from '../firebase';
 */
 
 export default function Navbar({ 
-  onNavigate = () => {},
+  navigation,
   currentRoute = 'home' // helps with active state highlighting
 }) {
   const { user, signOut } = useContext(AuthContext);
@@ -124,7 +124,7 @@ export default function Navbar({
       setShowLogoutConfirm(false);
       setIsProfileOpen(false);
       setIsMenuOpen(false);
-      onNavigate('signin');
+      // The navigator will automatically handle redirecting to the sign-in screen
     } catch (error) {
       console.error('Error during logout:', error);
     }
@@ -132,12 +132,12 @@ export default function Navbar({
 
   const closeMenuAndNavigate = (destination) => {
     setIsMenuOpen(false);
-    onNavigate(destination);
+    navigation.navigate(destination);
   };
 
   const closeProfileAndNavigate = (destination) => {
     setIsProfileOpen(false);
-    onNavigate(destination);
+    navigation.navigate(destination);
   };
 
   const showLogoutAlert = () => {
@@ -302,7 +302,7 @@ export default function Navbar({
                   )}
                   <MenuItem 
                     label="Require a Donor" 
-                    onPress={() => closeMenuAndNavigate('needdonor')}
+                    onPress={() => closeMenuAndNavigate('needdonor')} 
                     isActive={currentRoute === 'needdonor'}
                   />
                 </>
