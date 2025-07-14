@@ -3,6 +3,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   Modal,
   StyleSheet,
   Image,
@@ -153,8 +154,6 @@ export default function Navbar({
 
   const profileItems = [
     { key: 'profile', label: 'Profile', show: true },
-    { key: 'admin', label: 'Admin', show: userRole === 'admin' || userRole === 'superadmin' },
-    { key: 'superadmin', label: 'Superadmin', show: userRole === 'superadmin' },
   ];
 
   // Unauthenticated header
@@ -167,7 +166,7 @@ export default function Navbar({
             {/* Empty space for alignment */}
           </View>
           <View style={styles.centerSection}>
-            <TouchableOpacity onPress={() => onNavigate('home')}>
+            <TouchableOpacity>
               <Image source={require('../assets/kk.png')} style={styles.logo} />
             </TouchableOpacity>
           </View>
@@ -185,7 +184,7 @@ export default function Navbar({
   }
 
   return (
-    <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
+    <View style={[styles.headerContainer]}>
       <StatusBar barStyle="light-content" backgroundColor="#b91c1c" />
       <View style={styles.headerContent}>
         {/* Left Section - Menu Icon */}
@@ -197,7 +196,7 @@ export default function Navbar({
 
         {/* Center Section - Logo */}
         <View style={styles.centerSection}>
-          <TouchableOpacity onPress={() => onNavigate('home')}>
+          <TouchableOpacity>
             <Image source={require('../assets/kk.png')} style={styles.logo} />
           </TouchableOpacity>
         </View>
@@ -258,12 +257,10 @@ export default function Navbar({
         transparent={true}
         onRequestClose={() => setIsProfileOpen(false)}
       >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1}
-          onPress={() => setIsProfileOpen(false)}
-        >
-          <View style={[styles.profileMenuContainer, { top: insets.top + 60 }]}>
+        <TouchableWithoutFeedback onPress={() => setIsProfileOpen(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={[styles.profileMenuContainer, { top: insets.top + 60 }]}>
             <ScrollView style={styles.menuScroll}>
               {/* Profile Header */}
               <View style={styles.profileHeader}>
@@ -291,22 +288,7 @@ export default function Navbar({
                   />
                 );
               })}
-              {userRole === 'user' && (
-                <>
-                  {!isDonor && (
-                    <MenuItem 
-                      label="Become a Donor" 
-                      onPress={() => closeMenuAndNavigate('donor-registration')}
-                      isActive={currentRoute === 'donor-registration'}
-                    />
-                  )}
-                  <MenuItem 
-                    label="Require a Donor" 
-                    onPress={() => closeMenuAndNavigate('needdonor')} 
-                    isActive={currentRoute === 'needdonor'}
-                  />
-                </>
-              )}
+
               {/* Logout Button */}
               <TouchableOpacity style={styles.logoutButton} onPress={showLogoutAlert}>
                 <Feather name="log-out" size={20} color="#fff" style={styles.logoutIcon} />
@@ -314,8 +296,10 @@ export default function Navbar({
               </TouchableOpacity>
             </ScrollView>
           </View>
-        </TouchableOpacity>
-      </Modal>
+        </TouchableWithoutFeedback>
+      </View>
+    </TouchableWithoutFeedback>
+  </Modal>
 
       {/* Logout Confirmation Modal */}
       <Modal
@@ -392,7 +376,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   logo: {
-    height: 40,
+    height: 90,
     width: 120,
     resizeMode: 'contain',
   },
