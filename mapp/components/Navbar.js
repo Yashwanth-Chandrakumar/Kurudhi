@@ -159,7 +159,7 @@ export default function Navbar({
   // Unauthenticated header
   if (!user) {
     return (
-      <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
+      <View style={[styles.headerContainer]}>
         <StatusBar barStyle="light-content" backgroundColor="#b91c1c" />
         <View style={styles.headerContent}>
           <View style={styles.leftSection}>
@@ -172,7 +172,7 @@ export default function Navbar({
           </View>
           <View style={styles.rightSection}>
             <TouchableOpacity 
-              onPress={() => onNavigate('signin')}
+              onPress={() => navigation.navigate('signin')}
               style={styles.loginButton}
             >
               <Text style={styles.loginButtonText}>Login</Text>
@@ -257,49 +257,51 @@ export default function Navbar({
         transparent={true}
         onRequestClose={() => setIsProfileOpen(false)}
       >
-        <TouchableWithoutFeedback onPress={() => setIsProfileOpen(false)}>
-          <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback>
-              <View style={[styles.profileMenuContainer, { top: insets.top + 60 }]}>
-            <ScrollView style={styles.menuScroll}>
-              {/* Profile Header */}
-              <View style={styles.profileHeader}>
-                <View style={styles.profileHeaderContent}>
-                  {profilePicture ? (
-                    <Image source={{ uri: profilePicture }} style={styles.profileImage} />
-                  ) : (
-                    <View style={styles.profileImagePlaceholder}>
-                      <Feather name="user" size={24} color="#b91c1c" />
-                    </View>
-                  )}
-                  <Text style={styles.profileEmail}>{user.email}</Text>
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1}
+          onPress={() => setIsProfileOpen(false)}
+        >
+          <TouchableWithoutFeedback>
+            <View style={[styles.profileMenuContainer, { top: insets.top + 60 }]}>
+              <ScrollView style={styles.menuScroll}>
+                {/* Profile Header */}
+                <View style={styles.profileHeader}>
+                  <View style={styles.profileHeaderContent}>
+                    {profilePicture ? (
+                      <Image source={{ uri: profilePicture }} style={styles.profileImage} />
+                    ) : (
+                      <View style={styles.profileImagePlaceholder}>
+                        <Feather name="user" size={24} color="#b91c1c" />
+                      </View>
+                    )}
+                    <Text style={styles.profileEmail}>{user.email}</Text>
+                  </View>
                 </View>
-              </View>
 
-              {/* Profile Menu Items */}
-              {profileItems.map((item) => {
-                if (!item.show) return null;
-                return (
-                  <MenuItem
-                    key={item.key}
-                    label={item.label}
-                    onPress={() => closeProfileAndNavigate(item.key)}
-                    isActive={currentRoute === item.key}
-                  />
-                );
-              })}
+                {/* Profile Menu Items */}
+                {profileItems.map((item) => {
+                  if (!item.show) return null;
+                  return (
+                    <MenuItem
+                      key={item.key}
+                      label={item.label}
+                      onPress={() => closeProfileAndNavigate(item.key)}
+                      isActive={currentRoute === item.key}
+                    />
+                  );
+                })}
 
-              {/* Logout Button */}
-              <TouchableOpacity style={styles.logoutButton} onPress={showLogoutAlert}>
-                <Feather name="log-out" size={20} color="#fff" style={styles.logoutIcon} />
-                <Text style={styles.logoutButtonText}>Logout</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </TouchableWithoutFeedback>
-      </View>
-    </TouchableWithoutFeedback>
-  </Modal>
+                {/* Logout Button */}
+                <TouchableOpacity style={styles.logoutButton} onPress={showLogoutAlert}>
+                  <Feather name="log-out" size={20} color="#fff" style={styles.logoutIcon} />
+                  <Text style={styles.logoutButtonText}>Logout</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Logout Confirmation Modal */}
       <Modal
@@ -430,9 +432,9 @@ const styles = StyleSheet.create({
   profileMenuContainer: {
     position: 'absolute',
     right: 16,
+    left: 16, // Added left positioning to prevent going off screen
     backgroundColor: '#fff',
     maxHeight: '70%',
-    width: 280,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -480,6 +482,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
     backgroundColor: '#f8f9fa',
+    borderTopLeftRadius: 12, // Added border radius to match container
+    borderTopRightRadius: 12,
   },
   profileHeaderContent: {
     flexDirection: 'row',

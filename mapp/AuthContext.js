@@ -5,6 +5,11 @@ import { doc, setDoc } from 'firebase/firestore';
 
 export const AuthContext = createContext();
 
+// Custom hook for accessing the auth context easily across the app
+export const useAuth = () => {
+  return React.useContext(AuthContext);
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
 

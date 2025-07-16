@@ -1,5 +1,6 @@
 "use client";
 import Navbar from "@/components/Navbar";
+import Faq from '@/components/Faq';
 import { Activity, ArrowRight, Calendar, Heart, Mail, MapPin, Phone, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -193,7 +194,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* CTA Section */}
+        <Faq />
         {!isDonor && (
           <section className="bg-red-700 text-white py-20">
             <div className="container mx-auto px-4 text-center">
@@ -259,8 +260,8 @@ export default function Home() {
             <div>
               <h4 className="text-lg font-semibold mb-4">Legal</h4>
               <ul className="space-y-2">
-                <li><a href="/privacy" className="text-gray-400 hover:text-white transition-colors">Privacy Policy</a></li>
-                <li><a href="/terms" className="text-gray-400 hover:text-white transition-colors">Terms of Service</a></li>
+                <li><a href="/privacy-policy" className="text-gray-400 hover:text-white transition-colors">Privacy Policy</a></li>
+                <li><a href="/terms-and-conditions" className="text-gray-400 hover:text-white transition-colors">Terms & Conditions</a></li>
                 <li><a href="/contact" className="text-gray-400 hover:text-white transition-colors">Contact Us</a></li>
               </ul>
             </div>

@@ -10,6 +10,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RequestDonor } from './pages/needdonor';
 import MainLayout from './components/MainLayout';
 import MyRequestsPage from './pages/myrequests';
+import ProfilePage from './pages/profile';
 
 const Stack = createStackNavigator();
 
@@ -42,7 +43,13 @@ function AppNavigator() {
                 </MainLayout>
               )}
             </Stack.Screen>
-          
+            <Stack.Screen name="profile" options={{ headerShown: false }}>
+              {props => (
+                <MainLayout {...props}>
+                  <ProfilePage {...props} />
+                </MainLayout>
+              )}
+            </Stack.Screen>
           </>
         ) : (
           <>
