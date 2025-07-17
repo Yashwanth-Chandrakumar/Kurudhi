@@ -282,7 +282,7 @@ function DonorRequestCard({ request, donorRecord, user, onRefresh }) {
               {isLoading ? 'Processing...' : 
                request.Verified === 'completed' ? 'Request Fulfilled' :
                canDonate ? 'I want to Donate' : 
-               `Donate in ${remainingDays} day${remainingDays === 1 ? '' : 's'}`}
+               `You can Donate in ${remainingDays} day${remainingDays === 1 ? '' : 's'}`}
             </Text>
           </TouchableOpacity>
         );

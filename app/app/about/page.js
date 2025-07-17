@@ -169,11 +169,7 @@ export default function About() {
           <div className="md:w-1/2">
             <h2 className="text-4xl font-bold mb-6 text-red-800">Our Mission</h2>
             <p className="text-lg text-gray-700 mb-6 leading-relaxed">
-              At Kurudhi Kodai, we believe every life matters. Our mission is to bridge the gap between donors and recipients,
-              ensuring safe and timely blood transfusions for all.
-            </p>
-            <p className="text-lg text-gray-700 leading-relaxed">
-              Since 2023, we have built a community of passionate donors and healthcare partners to keep our communities thriving.
+            Kurudhi Koodai is a life-saving initiative by the Rotaract Organization, connecting voluntary blood donors with those in urgent need. Driven by the spirit of service, our mission is to ensure no life is lost due to blood unavailability. Through our platform, we enable swift, compassionate response where technology meets humanity. It’s more than a cause; it’s a movement of unity, hope, and action.
             </p>
           </div>
         </div>

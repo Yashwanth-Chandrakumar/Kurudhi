@@ -1,6 +1,9 @@
 "use client";
 import Navbar from "@/components/Navbar";
 import Faq from '@/components/Faq';
+import LearnDonation from '@/components/LearnDonation';
+import DonationBenefits from '@/components/DonationBenefits';
+import '@/components/DonationBenefits.css';
 import { Activity, ArrowRight, Calendar, Heart, Mail, MapPin, Phone, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -192,6 +195,10 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        <LearnDonation />
+        
+
         {!isDonor && (
           <section className="bg-red-700 text-white py-20">
             <div className="container mx-auto px-4 text-center">
@@ -227,7 +234,7 @@ export default function Home() {
           </div>
         </section>
       </main>
-
+      <DonationBenefits />
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-12">
         <div className="container mx-auto px-4">

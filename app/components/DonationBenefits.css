@@ -1,0 +1,29 @@
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.marquee-container {
+  width: 100%;
+}
+
+.marquee-content {
+  animation: marquee 30s linear infinite;
+  display: inline-flex;
+}
+
+.benefit-card {
+  flex-shrink: 0;
+  width: 320px; /* Adjust width as needed */
+  background-color: #fff;
+  color: #333;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+  margin: 0 16px;
+  text-align: center;
+}
+
+.bg-maroon-800 {
+    background-color: #610000;
+}
