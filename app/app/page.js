@@ -5,7 +5,6 @@ import { Activity, ArrowRight, Calendar, Heart, Mail, MapPin, Phone, Users } fro
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuth } from "@/context/AuthContext";
-
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { collection, getDocs, getFirestore, onSnapshot, query, where } from 'firebase/firestore';
 
@@ -193,8 +192,6 @@ export default function Home() {
             </div>
           </div>
         </section>
-
-        <Faq />
         {!isDonor && (
           <section className="bg-red-700 text-white py-20">
             <div className="container mx-auto px-4 text-center">
@@ -216,15 +213,15 @@ export default function Home() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-4xl mx-auto">
               <div className="flex flex-col items-center">
                 <Phone className="w-8 h-8 text-red-700 mb-2" />
-                <span className="text-red-800 font-semibold">+1 (123) 456-7890</span>
+                <span className="text-red-800 font-semibold">+91 91592 74334</span>
               </div>
               <div className="flex flex-col items-center">
                 <Mail className="w-8 h-8 text-red-700 mb-2" />
-                <span className="text-red-800 font-semibold">contact@kurudhikodai.com</span>
+                <span className="text-red-800 font-semibold">kurudhikodai@gmail.com</span>
               </div>
               <div className="flex flex-col items-center">
                 <MapPin className="w-8 h-8 text-red-700 mb-2" />
-                <span className="text-red-800 font-semibold">Chennai, Tamil Nadu</span>
+                <span className="text-red-800 font-semibold">Coimbatore, Tamilnadu</span>
               </div>
             </div>
           </div>
@@ -252,17 +249,17 @@ export default function Home() {
             <div>
               <h4 className="text-lg font-semibold mb-4">Resources</h4>
               <ul className="space-y-2">
-                <li><a href="/blog" className="text-gray-400 hover:text-white transition-colors">Blog</a></li>
-                <li><a href="/faq" className="text-gray-400 hover:text-white transition-colors">FAQs</a></li>
-                <li><a href="/guidelines" className="text-gray-400 hover:text-white transition-colors">Guidelines</a></li>
+                <li><a href="/blog" target="_blank" className="text-gray-400 hover:text-white transition-colors">Blog</a></li>
+                <li><a href="/faq" target="_blank" className="text-gray-400 hover:text-white transition-colors">FAQs</a></li>
+                <li><a href="/guidelines" target="_blank" className="text-gray-400 hover:text-white transition-colors">Guidelines</a></li>
               </ul>
             </div>
             <div>
               <h4 className="text-lg font-semibold mb-4">Legal</h4>
               <ul className="space-y-2">
-                <li><a href="/privacy-policy" className="text-gray-400 hover:text-white transition-colors">Privacy Policy</a></li>
-                <li><a href="/terms-and-conditions" className="text-gray-400 hover:text-white transition-colors">Terms & Conditions</a></li>
-                <li><a href="/contact" className="text-gray-400 hover:text-white transition-colors">Contact Us</a></li>
+                <li><a href="/privacy-policy" target="_blank" className="text-gray-400 hover:text-white transition-colors">Privacy Policy</a></li>
+                <li><a href="/terms-and-conditions" target="_blank" className="text-gray-400 hover:text-white transition-colors">Terms & Conditions</a></li>
+                <li><a href="/contact" target="_blank" className="text-gray-400 hover:text-white transition-colors">Contact Us</a></li>
               </ul>
             </div>
           </div>
