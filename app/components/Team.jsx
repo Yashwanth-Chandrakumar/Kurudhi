@@ -22,6 +22,12 @@ const OurTeamPage = () => {
       image: "/yokesh.jpeg" // Placeholder image
     },
     {
+      name: "S.C. Yashwanth",
+      position: "Creator & Co - Founder",
+      bgColor: "bg-purple-100",
+      image: "/yash.jpg" // Placeholder image
+    },
+    {
       name: "Rtr. Dharshini Shri D",
       position: "Committee Member",
       bgColor: "bg-pink-100",

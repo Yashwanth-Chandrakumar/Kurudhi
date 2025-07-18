@@ -255,7 +255,7 @@ export default function Home() {
             <div>
               <h4 className="text-lg font-semibold mb-4">Resources</h4>
               <ul className="space-y-2">
-                <li><a href="https://rotaract3206.org/" target="_blank" className="text-gray-400 hover:text-white transition-colors">Blog</a></li>
+                <li><a href="https://rotaract3206.org/" target="_blank" className="text-gray-400 hover:text-white transition-colors">Rotaract 3206</a></li>
                 <li><a href="/faq" target="_blank" className="text-gray-400 hover:text-white transition-colors">FAQs</a></li>
                 <li><a href="/about" className="text-gray-400 hover:text-white transition-colors">About Us</a></li>
                  </ul>
