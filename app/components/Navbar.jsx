@@ -137,11 +137,11 @@ const Navbar = () => {
             <Link href="/about" className={`px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/about" ? "text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
               About
             </Link>
-            {user && !isDonor && (
+            {/* {user && !isDonor && (
               <Link href="/newdonor" className={`px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/newdonor" ? "text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
                 Become a Donor
               </Link>
-            )}
+            )} */}
             <Link href="/needdonor" className={`px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/needdonor" ? "text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
               Require a Donor
             </Link>
@@ -246,11 +246,11 @@ const Navbar = () => {
               <Link href="/about" className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/about" ? "text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
                 About
               </Link>
-              {user && !isDonor && (
+              {/* {user && !isDonor && (
                 <Link href="/newdonor" className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/newdonor" ? "text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
                   Become a Donor
                 </Link>
-              )}
+              )} */}
               <Link href="/needdonor" className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${pathname === "/needdonor" ? "text-white font-semibold border-b-2 border-white" : "text-white hover:bg-red-700"}`}>
                 Require a Donor
               </Link>

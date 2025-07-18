@@ -247,18 +247,18 @@ export default function Home() {
             <div>
               <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
               <ul className="space-y-2">
-                <li><a href="/about" className="text-gray-400 hover:text-white transition-colors">About Us</a></li>
                 <li><a href="/dashboard" className="text-gray-400 hover:text-white transition-colors">Donate Blood</a></li>
                 <li><a href="/needdonor" className="text-gray-400 hover:text-white transition-colors">Find Donors</a></li>
+                <li><a href="/camp" className="text-gray-400 hover:text-white transition-colors">Host a Camp</a></li>
               </ul> 
             </div>
             <div>
               <h4 className="text-lg font-semibold mb-4">Resources</h4>
               <ul className="space-y-2">
-                <li><a href="/blog" target="_blank" className="text-gray-400 hover:text-white transition-colors">Blog</a></li>
+                <li><a href="https://rotaract3206.org/" target="_blank" className="text-gray-400 hover:text-white transition-colors">Blog</a></li>
                 <li><a href="/faq" target="_blank" className="text-gray-400 hover:text-white transition-colors">FAQs</a></li>
-                <li><a href="/guidelines" target="_blank" className="text-gray-400 hover:text-white transition-colors">Guidelines</a></li>
-              </ul>
+                <li><a href="/about" className="text-gray-400 hover:text-white transition-colors">About Us</a></li>
+                 </ul>
             </div>
             <div>
               <h4 className="text-lg font-semibold mb-4">Legal</h4>
