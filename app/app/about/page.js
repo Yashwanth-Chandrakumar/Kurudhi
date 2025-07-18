@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { getFirestore, collection, query, where, getDocs,getCountFromServer } from 'firebase/firestore';
 import { getApp, getApps, initializeApp } from 'firebase/app';
+import OurTeamPage from '@/components/Team';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -203,28 +204,7 @@ export default function About() {
       
 
       {/* Team Section */}
-      <section className="py-20 bg-red-50">
-        <div className="container mx-auto px-4">
-          <h2 className="text-4xl font-bold text-center text-red-800 mb-12">Our Team</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-            <TeamMember 
-              name="Dr. Sarah Johnson"
-              role="Medical Director"
-              image="/api/placeholder/400/300"
-            />
-            <TeamMember 
-              name="John Smith"
-              role="Operations Manager"
-              image="/api/placeholder/400/300"
-            />
-            <TeamMember 
-              name="Maria Garcia"
-              role="Community Coordinator"
-              image="/api/placeholder/400/300"
-            />
-          </div>
-        </div>
-      </section>
+      <OurTeamPage/>
 
       {/* CTA Section */}
       <section className="py-20 bg-red-700 text-white">
