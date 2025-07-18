@@ -1,6 +1,5 @@
 "use client";
 import Navbar from "@/components/Navbar";
-import Faq from '@/components/Faq';
 import LearnDonation from '@/components/LearnDonation';
 import DonationBenefits from '@/components/DonationBenefits';
 import '@/components/DonationBenefits.css';
