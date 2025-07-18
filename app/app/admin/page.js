@@ -8,9 +8,9 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
-import { Textarea } from '@/components/ui/textarea'
+import { Textarea } from '@/components/ui/textarea';
+import SupportPage from '../support/page';
 import { useAuth } from '@/context/AuthContext'
-import exportToExcel from '@/utils/exportToExcel'
 import { getApp, getApps, initializeApp } from 'firebase/app'
 import {
   addDoc,
@@ -27,8 +27,16 @@ import {
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useState } from 'react'
+import exportToExcel from '@/utils/exportToExcel'
+import { useEffect, useState, useCallback } from 'react'
 import { toast } from 'react-hot-toast'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 
 // Firebase configuration
 const firebaseConfig = {
@@ -733,6 +741,14 @@ export default function AdminDashboard() {
           >
             Donors
           </button>
+          <button
+            onClick={() => handleSidebarClick('support')}
+            className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
+              activeTab === 'support' ? 'bg-red-600' : 'hover:bg-gray-700'
+            }`}
+          >
+            Support
+          </button>
         </nav>
       </aside>
 
@@ -755,6 +771,9 @@ export default function AdminDashboard() {
             </Link>
             <Link href="#" onClick={() => handleSidebarClick('donors')} className="block px-4 py-2 rounded hover:bg-red-500">
               Donors
+            </Link>
+            <Link href="#" onClick={() => handleSidebarClick('support')} className="block px-4 py-2 rounded hover:bg-red-500">
+              Support
             </Link>
           </nav>
         </DialogContent>
@@ -824,11 +843,15 @@ export default function AdminDashboard() {
       <div className="flex-1 p-6 md:p-10">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-4xl font-extrabold text-gray-800">
-            {activeTab === 'requests'
-              ? 'Blood Requests'
-              : activeTab === 'camps'
-              ? 'Blood Camps'
-              : 'Donors'}
+          {
+  activeTab === 'requests'
+    ? 'Blood Requests'
+    : activeTab === 'camps'
+    ? 'Blood Camps'
+    : activeTab === 'support'
+    ? 'Support Inbox'
+    : 'Donors'
+}
           </h1>
           {assignedCity && (
             <div className="px-4 py-2 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
@@ -1220,6 +1243,12 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {activeTab === 'support' && (
+          <div className="bg-white rounded-xl shadow-lg p-8 mb-10">
+            <SupportPage />
+          </div>
+        )}
+
         {/* Pagination */}
         {(
           <div className="flex justify-center mt-8">
@@ -1239,8 +1268,16 @@ export default function AdminDashboard() {
                 Next
               </button>
               <span className="px-4 py-2">
-                Page {currentPage} • {filteredData.length} {activeTab === 'requests' ? 'Requests' : 
-                  activeTab === 'donors' ? 'Donors' : 'Camps'}
+                Page {currentPage} • {filteredData.length} {
+  activeTab === 'requests' 
+    ? 'Requests' 
+    : activeTab === 'donors' 
+    ? 'Donors' 
+    : activeTab === 'support' 
+    ? 'Queries' 
+    : 'Camps'
+}
+
               </span>
             </div>
           </div>
