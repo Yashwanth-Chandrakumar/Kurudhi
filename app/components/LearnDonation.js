@@ -305,44 +305,7 @@ const LearnDonation = () => {
           </div>
         </div>
 
-        {/* Interactive Blood Type Grid */}
-        <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-2xl p-8">
-          <h3 className="text-2xl font-bold text-center mb-6 text-gray-800">
-            Interactive Compatibility Matrix
-          </h3>
-          <div className="grid grid-cols-9 gap-2 text-sm">
-            <div className="font-bold text-center p-2">From → To</div>
-            {bloodTypes.map(type => (
-              <div key={type} className={`font-bold text-center p-2 rounded text-white ${getBloodTypeColor(type)}`}>
-                {type}
-              </div>
-            ))}
-            
-            {bloodTypes.map(donorType => (
-              <React.Fragment key={donorType}>
-                <div className={`font-bold text-center p-2 rounded text-white ${getBloodTypeColor(donorType)}`}>
-                  {donorType}
-                </div>
-                {bloodTypes.map(recipientType => {
-                  const canDonate = bloodCompatibility[donorType].giveTo.includes(recipientType);
-                  return (
-                    <div
-                      key={`${donorType}-${recipientType}`}
-                      className={`text-center p-2 rounded transition-colors cursor-pointer ${
-                        canDonate 
-                          ? 'bg-green-200 hover:bg-green-300 text-green-800' 
-                          : 'bg-red-200 hover:bg-red-300 text-red-800'
-                      }`}
-                      title={`${donorType} ${canDonate ? 'can' : 'cannot'} donate to ${recipientType}`}
-                    >
-                      {canDonate ? '✓' : '✗'}
-                    </div>
-                  );
-                })}
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
+        
       </div>
     </section>
   );

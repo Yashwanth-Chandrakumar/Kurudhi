@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/context/AuthContext'
+import exportToExcel from '@/utils/exportToExcel'
 import { getApp, getApps, initializeApp } from 'firebase/app'
 import {
   addDoc,
@@ -26,16 +27,8 @@ import {
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import exportToExcel from '@/utils/exportToExcel'
-import { useEffect, useState, useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'react-hot-toast'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
 
 // Firebase configuration
 const firebaseConfig = {
@@ -1126,7 +1119,11 @@ export default function AdminDashboard() {
                           </Button>
                         )}
                         {request.Verified === 'rejected' && (
-                          <Button variant="secondary" onClick={() => openRejectionDetailsModal(request.id)}>
+                          <Button 
+                            variant="secondary" 
+                            onClick={() => openRejectionDetailsModal(request.id)}
+                            className="bg-yellow-400 hover:bg-yellow-500 text-white px-4 py-2 rounded transition"
+                          >
                             View Reason
                           </Button>
                         )}
