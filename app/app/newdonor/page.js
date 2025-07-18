@@ -577,8 +577,8 @@ export default function BecomeDonor() {
                         })}
                         className="border-red-200 data-[state=checked]:bg-red-600"
                       />
-                      <Label htmlFor="acceptTerms" className="text-red-700">
-                        I accept the terms and conditions
+                      <Label htmlFor="acceptTerms" className="text-blue-700">
+                      <a href='/terms-and-conditions' target='_blank'><u> I accept the terms and conditions</u></a> 
                       </Label>
                     </div>
                     {renderFieldError('acceptTerms')}
