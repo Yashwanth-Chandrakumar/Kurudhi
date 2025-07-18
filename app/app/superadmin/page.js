@@ -42,7 +42,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { toast } from 'react-hot-toast'
-import exportToExcel from '@/utils/exportToExcel'
+import exportToExcel from '@/utils/exportToExcel';
+import SupportPage from '../support/page';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -1129,12 +1130,20 @@ export default function SuperAdminDashboard() {
             Users
           </button>
           <button
-            onClick={() => handleSidebarClick('manageAdmins')}
+            onClick={() => handleSidebarClick('manage-admins')}
             className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
-              activeTab === 'manageAdmins' ? 'bg-red-600' : 'hover:bg-gray-700'
+              activeTab === 'manage-admins' ? 'bg-red-600' : 'hover:bg-gray-700'
             }`}
           >
             Manage Admins
+          </button>
+          <button
+            onClick={() => handleSidebarClick('support')}
+            className={`w-full text-left px-4 py-2 rounded transition-all duration-300 ${
+              activeTab === 'support' ? 'bg-red-600' : 'hover:bg-gray-700'
+            }`}
+          >
+            Support
           </button>
         </nav>
       </aside>
@@ -1163,9 +1172,12 @@ export default function SuperAdminDashboard() {
             <Link href="#" onClick={() => handleSidebarClick('users')} className="block px-4 py-2 rounded hover:bg-red-500">
               Users
             </Link>
-            <Link href="#" onClick={() => handleSidebarClick('manageAdmins')} className="block px-4 py-2 rounded hover:bg-red-500">
-              Manage Admins
-            </Link>
+            <Link href="#" onClick={() => handleSidebarClick('manage-admins')} className="block px-4 py-2 rounded hover:bg-red-500">
+                Manage Admins
+              </Link>
+              <Link href="#" onClick={() => handleSidebarClick('support')} className="block px-4 py-2 rounded hover:bg-red-500">
+                Support
+              </Link>
           </nav>
         </DialogContent>
       </Dialog>
@@ -1199,15 +1211,17 @@ export default function SuperAdminDashboard() {
       {/* Main Content - Update title to include Users */}
       <div className="flex-1 p-6 md:p-10">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-4xl font-extrabold text-gray-800">
+          <h1 className="text-3xl font-bold text-gray-800">
             {activeTab === 'requests'
               ? 'Blood Requests'
               : activeTab === 'camps'
-              ? 'Blood Camps'
+              ? 'Camps'
               : activeTab === 'donors'
               ? 'Donors'
               : activeTab === 'users'
               ? 'All Users'
+              : activeTab === 'support'
+              ? 'Support Inbox'
               : 'Manage Admins'}
           </h1>
           <Button variant="outline" onClick={handleExport}>Export</Button>
@@ -1824,8 +1838,10 @@ export default function SuperAdminDashboard() {
           </div>
         )}
 
+        {activeTab === 'support' && <SupportPage />}
+
         {/* Update Manage Admins section to include Details button */}
-        {activeTab === 'manageAdmins' && (
+        {activeTab === 'manage-admins' && (
           <div className="bg-white rounded-xl shadow-lg p-8 mb-10">
             <div className="mb-6">
               <input

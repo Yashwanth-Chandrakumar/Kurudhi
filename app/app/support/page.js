@@ -22,6 +22,9 @@ const SupportPage = () => {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [updating, setUpdating] = useState(false);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   // Initialize Firebase
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
@@ -117,6 +120,10 @@ const SupportPage = () => {
     }
   };
 
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = supportRequests.slice(indexOfFirstItem, indexOfLastItem);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -162,7 +169,7 @@ const SupportPage = () => {
               </tr>
             </thead>
             <tbody>
-              {supportRequests.map((request) => (
+              {currentItems.map(request => (
                 <tr key={request.id} className="hover:bg-gray-50">
                   <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                     <div className="flex items-center">
@@ -201,6 +208,34 @@ const SupportPage = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {supportRequests.length > itemsPerPage && (
+          <div className="flex justify-between items-center mt-6 pt-4 border-t">
+            <span className="text-sm text-gray-600">
+              Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, supportRequests.length)} of {supportRequests.length} Queries
+            </span>
+            <div className="flex items-center">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Previous
+              </button>
+              <span className="px-4 text-sm font-semibold">
+                Page {currentPage} of {Math.ceil(supportRequests.length / itemsPerPage)}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(supportRequests.length / itemsPerPage)))}
+                disabled={currentPage === Math.ceil(supportRequests.length / itemsPerPage)}
+                className="px-3 py-1 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
         
         {supportRequests.length === 0 && (
           <div className="text-center py-8">
