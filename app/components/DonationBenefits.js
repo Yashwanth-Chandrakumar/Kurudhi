@@ -26,7 +26,7 @@ const benefits = [
 
 const DonationBenefits = () => {
   return (
-    <section className="py-12 bg-maroon-800 text-white">
+    <section className="py-12 bg-red-800 text-white">
         <div className="marquee-container overflow-hidden">
             <div className="marquee-content flex">
                 {[...benefits, ...benefits].map((benefit, index) => (
