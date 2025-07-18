@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   picker: {
-    height: 44,
+    // height: 44, // Removed to fix text cropping on Android
   },
   disabledPicker: {
     backgroundColor: '#f3f4f6',

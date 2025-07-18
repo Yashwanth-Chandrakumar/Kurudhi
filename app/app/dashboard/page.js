@@ -542,7 +542,7 @@ export default function DashboardPage() {
               onClick={handleDonateClick} 
               disabled={!canDonate || request.Verified === 'completed'}
               className={`w-full font-bold py-3 transition-all ${!canDonate || request.Verified === 'completed' ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 text-white'}`}>
-              {request.Verified === 'completed' ? 'Request Fulfilled' : canDonate ? 'I want to Donate' : `Donate in ${remainingDays} day${remainingDays === 1 ? '' : 's'}`}
+              {request.Verified === 'completed' ? 'Request Fulfilled' : canDonate ? 'Donate Now' : `You can Donate in ${remainingDays} day${remainingDays === 1 ? '' : 's'}`}
             </Button>
           </div>
         );
@@ -791,7 +791,7 @@ export default function DashboardPage() {
                   }`}
                   onClick={() => setActiveTab('mytype')}
                 >
-                  My Blood Type
+                  Eligible for me
                 </button>
                 <button
                   className={`py-3 px-6 font-medium text-sm focus:outline-none transition-colors ${
