@@ -122,7 +122,7 @@ const Navbar = () => {
             <Link href="/" className="flex items-center">
               {/* Replace "/kk.png" with your logo image */}
               <img src="/kk.png" alt="Logo" className="h-36 w-auto" />
-              <img src="/Rotaract_Logo_White.png" alt="Logo" className="h-20 w-auto" />
+              <img src="/rot1.png" alt="Logo" className="h-12 w-auto" />
             </Link>
           </div>
 

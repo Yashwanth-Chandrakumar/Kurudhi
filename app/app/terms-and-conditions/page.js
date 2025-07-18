@@ -276,7 +276,7 @@ const TermsAndConditionsPage = () => {
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 
                 <button className="border-2 border-white text-white hover:bg-white hover:text-red-600 px-6 py-3 rounded-lg font-semibold transition-colors duration-200">
-                  Contact Support
+                <a href='/contact' target='_blank'>Contact Support</a>
                 </button>
               </div>
             </div>
