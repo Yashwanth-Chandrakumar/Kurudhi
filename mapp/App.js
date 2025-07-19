@@ -50,6 +50,8 @@ function AppNavigator() {
                 </MainLayout>
               )}
             </Stack.Screen>
+            <Stack.Screen name="SignIn" component={SignIn} options={{ headerShown: false }} />
+            <Stack.Screen name="SignUp" component={SignUp} options={{ headerShown: false }} />
           </>
         ) : (
           <>

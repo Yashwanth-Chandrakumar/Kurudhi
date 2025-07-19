@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react';
 import { View, TextInput, Text, StyleSheet, Pressable, TouchableOpacity } from 'react-native';
 import { AuthContext } from '../AuthContext';
 
-export default function SignIn({ switchToSignUp }) {
+export default function SignIn({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -45,7 +45,7 @@ export default function SignIn({ switchToSignUp }) {
           <Text style={styles.buttonText}>Sign In</Text>
         </Pressable>
 
-        <TouchableOpacity onPress={switchToSignUp}>
+                <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
           <Text style={styles.switchText}>Don't have an account? Sign Up</Text>
         </TouchableOpacity>
       </View>

@@ -1840,15 +1840,14 @@ export default function SuperAdminDashboard() {
 
         {activeTab === 'support' && <SupportPage />}
 
-        {/* Update Manage Admins section to include Details button */}
-        {activeTab === 'manage-admins' && (
+        {activeTab === 'manage-admins' &&
           <div className="bg-white rounded-xl shadow-lg p-8 mb-10">
             <div className="mb-6">
               <input
                 type="text"
                 placeholder="Search by email..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={e => setSearchQuery(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
               />
             </div>
@@ -1864,12 +1863,18 @@ export default function SuperAdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {currentItems.length > 0 ? (
-                    currentItems.map(user => (
+                  {allUsers.filter(user =>
+                    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+                  ).length > 0 ? (
+                    allUsers.filter(user =>
+                      user.email.toLowerCase().includes(searchQuery.toLowerCase())
+                    ).map(user => (
                       <tr key={user.id} className="border-b hover:bg-gray-50 transition">
                         <td className="px-6 py-4">{user.email}</td>
                         <td className="px-6 py-4">{user.role || 'user'}</td>
-                        <td className="px-6 py-4">{user.role === 'admin' ? (user.assignedCity || 'None assigned') : '-'}</td>
+                        <td className="px-6 py-4">
+                          {user.role === 'admin' ? user.assignedCity || 'None assigned' : '-'}
+                        </td>
                         <td className="px-6 py-4">
                           <Button
                             onClick={() => openUserDetailsModal(user)}
@@ -1905,10 +1910,10 @@ export default function SuperAdminDashboard() {
               </table>
             </div>
           </div>
-        )}
+        }
 
         {/* Pagination (not needed for Manage Admins) */}
-        {activeTab !== 'manageAdmins' && (
+        {activeTab !== 'manage-admins' && (
           <div className="flex justify-center mt-8">
             <div className="space-x-4">
               <button
