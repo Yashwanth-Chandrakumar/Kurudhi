@@ -442,6 +442,14 @@ export default function DashboardPage() {
 
     const handleShare = async () => {
       if (!cardRef.current) return;
+
+      // Ensure the full card (including the expandable section) is visible in the screenshot
+      const wasExpanded = isExpanded;
+      if (!wasExpanded) {
+        setIsExpanded(true);
+        // Wait for the DOM to finish rendering the expanded content
+        await new Promise(res => setTimeout(res, 300));
+      }
     
       // Build dynamic share URL using the current origin
       const shareUrl = `${window.location.origin}/dashboard/#${request.id}`;
@@ -583,6 +591,11 @@ export default function DashboardPage() {
         const textarea = modalContent.querySelector('textarea');
         textarea.select();
         textarea.setSelectionRange(0, 99999); // For mobile devices
+      } finally {
+        // Collapse the card back to its previous state after sharing
+        if (!wasExpanded) {
+          setIsExpanded(false);
+        }
       }
     };
 
