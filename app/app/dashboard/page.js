@@ -464,13 +464,16 @@ export default function DashboardPage() {
           const buttons = cardRef.current.querySelectorAll('button');
           buttons.forEach(btn => (btn.style.visibility = 'hidden'));
     
-          // Generate a high-resolution image of the card
+          // Ensure element is in viewport then capture image of the card
+          cardRef.current.scrollIntoView({ behavior: 'instant', block: 'center' });
+          await new Promise(r => setTimeout(r, 200));
+
+          // Capture the card. Avoid foreignObjectRendering on some Android browsers which can result in blank images.
           const canvas = await html2canvas(cardRef.current, {
-            scale: 2,
+            scale: window.devicePixelRatio || 1,
             useCORS: true,
-            backgroundColor: '#ffffff',
-            allowTaint: true,
-            foreignObjectRendering: true,
+            backgroundColor: null,
+            allowTaint: true
           });
     
           // Restore button visibility
