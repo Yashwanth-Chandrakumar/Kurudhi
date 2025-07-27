@@ -442,40 +442,68 @@ export default function DashboardPage() {
 
     const handleShare = async () => {
       if (!cardRef.current) return;
-      
+
+      // Build dynamic share URL using the current origin (works on local, staging & prod)
+      const shareUrl = `${window.location.origin}/request/${request.id}`;
+      // Compose the share message once so it is reused across fallbacks
+      const shareMessage = `Please help ${request.PatientName} who needs ${request.BloodGroup} blood at ${request.Hospital}, ${request.City}.`;
+
       try {
-        // Temporarily hide buttons to not include them in the screenshot
+        // Temporarily hide buttons so they don’t appear in the screenshot
         const buttons = cardRef.current.querySelectorAll('button');
-        buttons.forEach(btn => btn.style.visibility = 'hidden');
-        
+        buttons.forEach(btn => (btn.style.visibility = 'hidden'));
+
+        // Generate a high-resolution image of the card
         const canvas = await html2canvas(cardRef.current, {
-          scale: 2, // Higher scale for better quality
-          useCORS: true, // If you have images from other domains
+          scale: 2,
+          useCORS: true,
           backgroundColor: '#ffffff',
         });
-        
-        // Restore buttons visibility
-        buttons.forEach(btn => btn.style.visibility = 'visible');
 
+        // Restore button visibility
+        buttons.forEach(btn => (btn.style.visibility = 'visible'));
+
+        // Convert canvas to a PNG file
         const dataUrl = canvas.toDataURL('image/png');
         const blob = await (await fetch(dataUrl)).blob();
         const filesArray = [new File([blob], 'donation-request.png', { type: 'image/png' })];
-        
-        if (navigator.canShare && navigator.canShare({ files: filesArray })) {
+
+        /*
+         * 1️⃣ Preferred: Web Share API with file support (Android Chrome, iOS 17 Safari, etc.)
+         *    – Attaches image + text + link in one native share sheet.
+         */
+        if (
+          navigator.canShare &&
+          navigator.canShare({ files: filesArray, url: shareUrl })
+        ) {
           await navigator.share({
             files: filesArray,
             title: 'Blood Donation Request',
-            text: `Please help ${request.PatientName} who needs ${request.BloodGroup} blood at ${request.Hospital}, ${request.City}.`,
+            text: `${shareMessage}\n${shareUrl}`,
+            url: shareUrl,
           });
-        } else {
-          // Fallback for browsers that don't support sharing files
-          const shareUrl = `https://kurudhi.vercel.app/request/${request.id}`;
+          return;
+        }
+
+        /*
+         * 2️⃣ Fallback: Web Share API without file support (most modern browsers)
+         */
+        if (navigator.share) {
           await navigator.share({
             title: 'Blood Donation Request',
-            text: `Please help ${request.PatientName} who needs ${request.BloodGroup} blood at ${request.Hospital}, ${request.City}.`,
-            url: shareUrl
+            text: `${shareMessage}\n${shareUrl}`,
+            url: shareUrl,
           });
+          return;
         }
+
+        /*
+         * 3️⃣ Ultimate fallback: Direct WhatsApp deep-link (ensures support on Android & iOS)
+         */
+        const whatsappURL = `https://wa.me/?text=${encodeURIComponent(
+          `${shareMessage} ${shareUrl}`
+        )}`;
+        window.open(whatsappURL, '_blank');
       } catch (error) {
         console.error('Error sharing:', error);
         alert('Could not share the request. Please try again.');
