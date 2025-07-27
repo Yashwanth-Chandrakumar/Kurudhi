@@ -488,7 +488,9 @@ export default function DashboardPage() {
           if (navigator.canShare && navigator.canShare({ files: filesArray })) {
             await navigator.share({
               files: filesArray,
-              title: 'Blood Donation Request'
+              title: 'Blood Donation Request',
+              text: `${shareMessage}\n${shareUrl}`,
+              url: shareUrl
             });
             return;
           } else {
