@@ -457,24 +457,7 @@ export default function DashboardPage() {
     
       try {
         /*
-         * 1️⃣ First try: Web Share API without files (works on most iOS devices)
-         */
-        if (navigator.share) {
-          try {
-            await navigator.share({
-              title: 'Blood Donation Request',
-              text: shareMessage,
-              url: shareUrl,
-            });
-            return;
-          } catch (shareError) {
-            console.log('Web Share API failed, trying fallback:', shareError);
-            // Continue to fallback options
-          }
-        }
-    
-        /*
-         * 2️⃣ Fallback: Try to generate image and share with files (newer iOS versions)
+         * 1️⃣ Try to generate image and share with files (preferred)
          */
         try {
           // Temporarily hide buttons so they don't appear in the screenshot
@@ -502,10 +485,11 @@ export default function DashboardPage() {
           if (navigator.canShare && navigator.canShare({ files: filesArray })) {
             await navigator.share({
               files: filesArray,
-              title: 'Blood Donation Request',
-              text: `${shareMessage}\n${shareUrl}`,
+              title: 'Blood Donation Request'
             });
             return;
+          } else {
+            console.log('File sharing not supported, will fallback to text share');
           }
         } catch (imageError) {
           console.log('Image sharing failed:', imageError);
@@ -513,7 +497,22 @@ export default function DashboardPage() {
         }
     
         /*
-         * 3️⃣ Copy to clipboard fallback (works well on iOS)
+         * 2️⃣ Fallback: Web Share API without files (text only)
+         */
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: 'Blood Donation Request',
+              text: `${shareMessage}\n${shareUrl}`,
+            });
+            return;
+          } catch (shareError) {
+            console.log('Text Web Share failed, trying next fallback:', shareError);
+          }
+        }
+
+        /*
+         * 3️⃣ Copy to clipboard fallback
          */
         if (navigator.clipboard && navigator.clipboard.writeText) {
           try {
