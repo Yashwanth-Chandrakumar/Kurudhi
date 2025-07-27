@@ -23,7 +23,7 @@ import {
     Activity, AlertCircle,
     Check, ChevronDown, ChevronRight, Clock,
     Droplet,
-    Hospital, Info, MapPin, Share2, Whatsapp
+    Hospital, Info, MapPin, Share2, MessageCircle
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -681,7 +681,7 @@ export default function DashboardPage() {
                 className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-full transition-colors"
                 title="Share via WhatsApp"
               >
-                <Whatsapp className="w-5 h-5" />
+                <MessageCircle className="w-5 h-5" />
               </button>
               <ChevronDown className={`w-6 h-6 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
             </div>
