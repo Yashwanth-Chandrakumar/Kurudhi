@@ -442,71 +442,147 @@ export default function DashboardPage() {
 
     const handleShare = async () => {
       if (!cardRef.current) return;
-
-      // Build dynamic share URL using the current origin (works on local, staging & prod)
+    
+      // Build dynamic share URL using the current origin
       const shareUrl = `${window.location.origin}/dashboard/#${request.id}`;
-      // Compose the share message once so it is reused across fallbacks
       const shareMessage = `Please help ${request.PatientName} who needs ${request.BloodGroup} blood at ${request.Hospital}, ${request.City}.`;
-
+    
       try {
-        // Temporarily hide buttons so they don’t appear in the screenshot
-        const buttons = cardRef.current.querySelectorAll('button');
-        buttons.forEach(btn => (btn.style.visibility = 'hidden'));
-
-        // Generate a high-resolution image of the card
-        const canvas = await html2canvas(cardRef.current, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: '#ffffff',
-        });
-
-        // Restore button visibility
-        buttons.forEach(btn => (btn.style.visibility = 'visible'));
-
-        // Convert canvas to a PNG file
-        const dataUrl = canvas.toDataURL('image/png');
-        const blob = await (await fetch(dataUrl)).blob();
-        const filesArray = [new File([blob], 'donation-request.png', { type: 'image/png' })];
-
         /*
-         * 1️⃣ Preferred: Web Share API with file support (Android Chrome, iOS 17 Safari, etc.)
-         *    – Attaches image + text + link in one native share sheet.
-         */
-        if (
-          navigator.canShare &&
-          navigator.canShare({ files: filesArray, url: shareUrl })
-        ) {
-          await navigator.share({
-            files: filesArray,
-            title: 'Blood Donation Request',
-            text: `${shareMessage}\n${shareUrl}`,
-            url: shareUrl,
-          });
-          return;
-        }
-
-        /*
-         * 2️⃣ Fallback: Web Share API without file support (most modern browsers)
+         * 1️⃣ First try: Web Share API without files (works on most iOS devices)
          */
         if (navigator.share) {
-          await navigator.share({
-            title: 'Blood Donation Request',
-            text: `${shareMessage}\n${shareUrl}`,
-            url: shareUrl,
-          });
-          return;
+          try {
+            await navigator.share({
+              title: 'Blood Donation Request',
+              text: shareMessage,
+              url: shareUrl,
+            });
+            return;
+          } catch (shareError) {
+            console.log('Web Share API failed, trying fallback:', shareError);
+            // Continue to fallback options
+          }
         }
-
+    
         /*
-         * 3️⃣ Ultimate fallback: Direct WhatsApp deep-link (ensures support on Android & iOS)
+         * 2️⃣ Fallback: Try to generate image and share with files (newer iOS versions)
          */
-        const whatsappURL = `https://wa.me/?text=${encodeURIComponent(
-          `${shareMessage} ${shareUrl}`
-        )}`;
+        try {
+          // Temporarily hide buttons so they don't appear in the screenshot
+          const buttons = cardRef.current.querySelectorAll('button');
+          buttons.forEach(btn => (btn.style.visibility = 'hidden'));
+    
+          // Generate a high-resolution image of the card
+          const canvas = await html2canvas(cardRef.current, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            allowTaint: true,
+            foreignObjectRendering: true,
+          });
+    
+          // Restore button visibility
+          buttons.forEach(btn => (btn.style.visibility = 'visible'));
+    
+          // Convert canvas to a PNG file
+          const dataUrl = canvas.toDataURL('image/png');
+          const blob = await (await fetch(dataUrl)).blob();
+          const filesArray = [new File([blob], 'donation-request.png', { type: 'image/png' })];
+    
+          // Check if we can share files
+          if (navigator.canShare && navigator.canShare({ files: filesArray })) {
+            await navigator.share({
+              files: filesArray,
+              title: 'Blood Donation Request',
+              text: `${shareMessage}\n${shareUrl}`,
+            });
+            return;
+          }
+        } catch (imageError) {
+          console.log('Image sharing failed:', imageError);
+          // Continue to next fallback
+        }
+    
+        /*
+         * 3️⃣ Copy to clipboard fallback (works well on iOS)
+         */
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          try {
+            await navigator.clipboard.writeText(`${shareMessage}\n${shareUrl}`);
+            
+            // Show a temporary success message
+            const originalText = event.target.textContent;
+            event.target.textContent = 'Copied!';
+            event.target.style.backgroundColor = '#10B981';
+            
+            setTimeout(() => {
+              event.target.textContent = originalText;
+              event.target.style.backgroundColor = '';
+            }, 2000);
+            
+            // Also show an alert
+            alert('Link copied to clipboard! You can now paste it in any app to share.');
+            return;
+          } catch (clipboardError) {
+            console.log('Clipboard failed:', clipboardError);
+          }
+        }
+    
+        /*
+         * 4️⃣ Ultimate fallback: WhatsApp deep-link (works on all mobile devices)
+         */
+        const whatsappURL = `https://wa.me/?text=${encodeURIComponent(`${shareMessage} ${shareUrl}`)}`;
         window.open(whatsappURL, '_blank');
+    
       } catch (error) {
-        console.error('Error sharing:', error);
-        alert('Could not share the request. Please try again.');
+        console.error('All sharing methods failed:', error);
+        
+        /*
+         * 5️⃣ Final fallback: Show a modal with the share text
+         */
+        const shareText = `${shareMessage}\n${shareUrl}`;
+        
+        // Create a simple modal to display the share text
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0,0,0,0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10000;
+          padding: 20px;
+          box-sizing: border-box;
+        `;
+        
+        const modalContent = document.createElement('div');
+        modalContent.style.cssText = `
+          background: white;
+          padding: 20px;
+          border-radius: 10px;
+          max-width: 400px;
+          width: 100%;
+        `;
+        
+        modalContent.innerHTML = `
+          <h3 style="margin: 0 0 15px 0; color: #333;">Share this request</h3>
+          <textarea readonly style="width: 100%; height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; resize: none; font-size: 14px; box-sizing: border-box;">${shareText}</textarea>
+          <p style="font-size: 12px; color: #666; margin: 10px 0;">Tap and hold the text above to copy it, then paste in any app to share.</p>
+          <button onclick="this.closest('div[style*=\"position: fixed\"]').remove()" style="background: #dc2626; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; width: 100%; margin-top: 10px;">Close</button>
+        `;
+        
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+        
+        // Auto-select the text for easy copying
+        const textarea = modalContent.querySelector('textarea');
+        textarea.select();
+        textarea.setSelectionRange(0, 99999); // For mobile devices
       }
     };
 
