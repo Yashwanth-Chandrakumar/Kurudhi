@@ -444,7 +444,7 @@ export default function DashboardPage() {
       if (!cardRef.current) return;
 
       // Build dynamic share URL using the current origin (works on local, staging & prod)
-      const shareUrl = `${window.location.origin}/request/${request.id}`;
+      const shareUrl = `${window.location.origin}/request`;
       // Compose the share message once so it is reused across fallbacks
       const shareMessage = `Please help ${request.PatientName} who needs ${request.BloodGroup} blood at ${request.Hospital}, ${request.City}.`;
 
