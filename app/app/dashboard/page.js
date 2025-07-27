@@ -480,7 +480,6 @@ export default function DashboardPage() {
             files: filesArray,
             title: 'Blood Donation Request',
             text: `${shareMessage}\n${shareUrl}`,
-            url: shareUrl,
           });
           return;
         }
@@ -492,7 +491,6 @@ export default function DashboardPage() {
           await navigator.share({
             title: 'Blood Donation Request',
             text: `${shareMessage}\n${shareUrl}`,
-            url: shareUrl,
           });
           return;
         }
