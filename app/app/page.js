@@ -129,9 +129,13 @@ export default function Home() {
                 Join our mission to save lives with every donation. Together, we make a difference.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
-                <button className="bg-white text-red-800 px-8 py-4 rounded-full font-bold hover:bg-gray-100 transition-all flex items-center" onClick={() => router.push('/dashboard')}>
-                  Donate Now <ArrowRight className="ml-2 w-5 h-5" />
-                </button>
+              <button
+  className="bg-white text-red-800 px-8 py-4 rounded-full font-bold hover:bg-gray-100 transition-all flex items-center justify-center w-full"
+  onClick={() => router.push('/dashboard')}
+>
+  Donate Now <ArrowRight className="ml-2 w-5 h-5" />
+</button>
+
                 <button className="border-2 border-white text-white px-8 py-4 rounded-full font-bold hover:bg-white hover:text-red-800 transition-all" onClick={() => router.push('/needdonor')}>
                   Find Donors
                 </button>
