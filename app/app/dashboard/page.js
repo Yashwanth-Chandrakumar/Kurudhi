@@ -23,7 +23,7 @@ import {
     Activity, AlertCircle,
     Check, ChevronDown, ChevronRight, Clock,
     Droplet,
-    Hospital, Info, MapPin, Share2
+    Hospital, Info, MapPin, Share2, Whatsapp
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -480,6 +480,7 @@ export default function DashboardPage() {
             files: filesArray,
             title: 'Blood Donation Request',
             text: `${shareMessage}\n${shareUrl}`,
+            url: shareUrl,
           });
           return;
         }
@@ -491,6 +492,7 @@ export default function DashboardPage() {
           await navigator.share({
             title: 'Blood Donation Request',
             text: `${shareMessage}\n${shareUrl}`,
+            url: shareUrl,
           });
           return;
         }
@@ -505,6 +507,41 @@ export default function DashboardPage() {
       } catch (error) {
         console.error('Error sharing:', error);
         alert('Could not share the request. Please try again.');
+      }
+    };
+
+    // Dedicated WhatsApp share handler – tries file share first, then falls back to deep-link
+    const handleWhatsAppShare = async () => {
+      if (!cardRef.current) return;
+
+      const shareUrl = `${window.location.origin}/dashboard/#${request.id}`;
+      const shareMessage = `Please help ${request.PatientName} who needs ${request.BloodGroup} blood at ${request.Hospital}, ${request.City}.`;
+      try {
+        const buttons = cardRef.current.querySelectorAll('button');
+        buttons.forEach(btn => (btn.style.visibility = 'hidden'));
+        const canvas = await html2canvas(cardRef.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+        buttons.forEach(btn => (btn.style.visibility = 'visible'));
+        const dataUrl = canvas.toDataURL('image/png');
+        const blob = await (await fetch(dataUrl)).blob();
+        const filesArray = [new File([blob], 'donation-request.png', { type: 'image/png' })];
+
+        // Use Web Share API targeting WhatsApp when possible (shows WhatsApp as first option on most devices)
+        if (navigator.canShare && navigator.canShare({ files: filesArray, url: shareUrl })) {
+          await navigator.share({
+            files: filesArray,
+            title: 'Blood Donation Request',
+            text: `${shareMessage}\n${shareUrl}`,
+            url: shareUrl,
+          });
+          return;
+        }
+
+        // Fallback: open WhatsApp deep-link with pre-filled text (image cannot be attached this way)
+        const whatsappURL = `https://wa.me/?text=${encodeURIComponent(`${shareMessage} ${shareUrl}`)}`;
+        window.open(whatsappURL, '_blank');
+      } catch (err) {
+        console.error('Error sharing to WhatsApp:', err);
+        alert('Could not share via WhatsApp. Please try again.');
       }
     };
 
@@ -638,6 +675,13 @@ export default function DashboardPage() {
                 title="Share Request"
               >
                 <Share2 className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleWhatsAppShare(); }}
+                className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-full transition-colors"
+                title="Share via WhatsApp"
+              >
+                <Whatsapp className="w-5 h-5" />
               </button>
               <ChevronDown className={`w-6 h-6 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
             </div>
