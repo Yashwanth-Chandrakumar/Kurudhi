@@ -16,7 +16,8 @@ import {
     updateDoc,
     where,
     deleteDoc,
-    increment
+    increment,
+    runTransaction
 } from 'firebase/firestore';
 import html2canvas from 'html2canvas';
 import {
@@ -263,6 +264,7 @@ export default function DashboardPage() {
     const [cancelReason, setCancelReason] = useState('');
     const shareUrlRef = useRef(null);
     const cardRef = useRef(null);
+    const expandableRef = useRef(null);
 
     // Add useEffect to refresh donation status when donorRecord changes
     useEffect(() => {
@@ -397,51 +399,67 @@ export default function DashboardPage() {
         alert("Invalid OTP. Please try again.");
         return;
       }
-      
       if (!canDonate) {
-        alert(`You can donate again in ${remainingDays} day${remainingDays === 1 ? '' : 's'}.`);
+        alert(`You can donate again in ${remainingDays} day${remainingDays === 1 ? "" : "s"}.`);
         return;
       }
-      
+    
+      const donationRef = doc(db, "requests", request.id, "donations", donation.id);
+      const requestRef  = doc(db, "requests", request.id);
+    
       try {
-        // Update donation record in the subcollection
-        await updateDoc(doc(db, "requests", request.id, "donations", donation.id), {
-          donorOtpVerified: true
+        // returns true if this transaction just finalized the donation
+        const finalized = await runTransaction(db, async (tx) => {
+          // 1) Read current donation state
+          const snap = await tx.get(donationRef);
+          if (!snap.exists()) throw new Error("Donation record missing.");
+          const data = snap.data();
+    
+          // 2) Mark this side verified
+          tx.update(donationRef, { donorOtpVerified: true });
+    
+          // 3) If donor already verified and not yet completed, finalize now
+          if (data.requesterOtpVerified && !data.completed) {
+            tx.update(requestRef,  { UnitsDonated: increment(1) });
+            tx.update(donationRef, { completed: true });
+            return true;
+          }
+          return false;
         });
-        
-        // Atomically increment the donated units
-        const requestRef = doc(db, "requests", request.id);
-        await updateDoc(requestRef, {
-          UnitsDonated: increment(1)
-        });
-          
-        // Update donor's last donation date
-        const donorQuery = query(collection(db, "donors"), where("Email", "==", user.email));
-        const donorSnapshot = await getDocs(donorQuery);
-        if (!donorSnapshot.empty) {
-          const donorRef = doc(db, "donors", donorSnapshot.docs[0].id);
-          await updateDoc(donorRef, {
-            lastDonationDate: new Date().toISOString().split('T')[0]
-          });
-        }
-        
-        // Check if donation is complete and update tab if needed
+
         const newStatus = await checkDonationCompletion(request.id);
         if (newStatus === 'completed') {
           setActiveTab('completed');
         }
-        
-        // Update local state
-        setDonation({ ...donation, donorOtpVerified: true });
-      } catch (error) {
-        console.error("Error verifying OTP:", error);
+    
+        // 4) Optimistically update UI
+        setDonation((d) => ({ ...d, donorOtpVerified: true }));
+    
+        // 5) If we finalized, update donor cooldown date
+        if (finalized) {
+          // look up donor doc by email (the donor who gave this unit)
+          const donorQ    = query(collection(db, "donors"), where("Email", "==", user.email));
+          const donorSnap = await getDocs(donorQ);
+          if (!donorSnap.empty) {
+            const donorRef = doc(db, "donors", donorSnap.docs[0].id);
+            await updateDoc(donorRef, {
+              lastDonationDate: new Date().toISOString().split("T")[0]
+            });
+          }
+          alert("OTP verified and donation completed!");
+        } else {
+          alert("OTP verified. Waiting on the other side to verify.");
+        }
+      } catch (err) {
+        console.error("Error verifying requester OTP:", err);
+        alert("Failed to verify OTP. Please try again.");
+      } finally {
+        setEnteredOtp("");
       }
-      
-      setEnteredOtp('');
     };
 
+
     const handleShare = async () => {
-      if (!cardRef.current) return;
 
       // Ensure the full card (including the expandable section) is visible in the screenshot
       const wasExpanded = isExpanded;
@@ -461,15 +479,15 @@ export default function DashboardPage() {
          */
         try {
           // Temporarily hide buttons so they don't appear in the screenshot
-          const buttons = cardRef.current.querySelectorAll('button');
+          const buttons = expandableRef.current.querySelectorAll('button');
           buttons.forEach(btn => (btn.style.visibility = 'hidden'));
     
           // Ensure element is in viewport then capture image of the card
-          cardRef.current.scrollIntoView({ behavior: 'instant', block: 'center' });
+          expandableRef.current.scrollIntoView({ behavior: 'instant', block: 'center' });
           await new Promise(r => setTimeout(r, 200));
 
           // Capture the card. Avoid foreignObjectRendering on some Android browsers which can result in blank images.
-          const canvas = await html2canvas(cardRef.current, {
+          const canvas = await html2canvas(expandableRef.current, {
             scale: window.devicePixelRatio || 1,
             useCORS: true,
             backgroundColor: null,
@@ -755,7 +773,7 @@ export default function DashboardPage() {
         </div>
         
         {isExpanded && (
-          <div className="p-4 bg-gray-50 border-t border-gray-200">
+          <div ref={expandableRef} className="p-4 bg-gray-50 border-t border-gray-200">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-white p-3 rounded-lg border">
                 <h3 className="text-sm font-medium text-gray-700 mb-2">Request Details</h3>

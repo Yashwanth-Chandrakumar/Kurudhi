@@ -12,7 +12,9 @@ import {
   updateDoc,
   doc,
   getDoc,
-  getDocs
+  getDocs,
+  increment,
+  runTransaction
 } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -227,21 +229,105 @@ export default function MyRequestsPage() {
       };
       fetchDonorDetails();
     }, [donation.donorId]);
-
+    
     const handleVerifyDonorOtp = async () => {
-      if (enteredOtp === donation.donorOtp) {
-        try {
-          const donationRef = doc(db, 'requests', request.id, 'donations', donation.id);
-          await updateDoc(donationRef, { requesterOtpVerified: true });
-          alert('OTP verified successfully. Donation is now complete!');
-        } catch (error) {
-          console.error('Error verifying donor OTP:', error);
-          alert('Failed to verify OTP. Please try again.');
+      if (!donation || enteredOtp !== donation.donorOtp) {
+        alert("Incorrect OTP entered.");
+        return;
+      }
+    
+      const donationRef = doc(db, "requests", request.id, "donations", donation.id);
+      const requestRef  = doc(db, "requests", request.id);
+    
+      try {
+        const { finalized, newUnits } = await runTransaction(db, async (tx) => {
+          // 1) Read both docs up‑front:
+          const snapDon = await tx.get(donationRef);
+          const snapReq = await tx.get(requestRef);
+          if (!snapDon.exists() || !snapReq.exists()) {
+            throw new Error("Missing docs in transaction");
+          }
+    
+          const dData = snapDon.data();
+          const rData = snapReq.data();
+    
+          // 2) Mark this side verified:
+          tx.update(donationRef, { requesterOtpVerified: true });
+    
+          // 3) If donor already verified & not yet completed → finalize
+          if (dData.donorOtpVerified && !dData.completed) {
+            const newUnits = (typeof rData.UnitsDonated === "number" ? rData.UnitsDonated : 0) + 1;
+    
+            // 4) Atomically increment the donated units
+            tx.update(requestRef, {
+              UnitsDonated: increment(1), // atomic, server-side increment
+              ...( newUnits >= (rData.UnitsNeeded || 0) && { Verified: "completed" } )
+            });
+    
+            // 5) Mark donation completed
+            tx.update(donationRef, { completed: true });
+    
+            return { finalized: true, newUnits };
+          }
+    
+          return { finalized: false, newUnits: null };
+        });
+    
+        // 6) Notify user
+        if (!finalized) {
+          alert("OTP verified. Waiting on the donor to verify.");
+        } else {
+          alert(`OTP verified and donation completed! Total units now: ${newUnits}.`);
         }
-      } else {
-        alert('Incorrect OTP entered.');
+        
+
+        // 7) Update donor’s cooldown date outside the transaction:
+        if (finalized && donation.donorEmail) {
+          const donorQ    = query(
+            collection(db, "donors"),
+            where("Email", "==", donation.donorEmail)
+          );
+          const donorSnap = await getDocs(donorQ);
+          if (!donorSnap.empty) {
+            const donorRef = doc(db, "donors", donorSnap.docs[0].id);
+            await updateDoc(donorRef, {
+              lastDonationDate: new Date().toISOString().split("T")[0]
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Error in donor‐OTP transaction:", err);
+        alert("Failed to verify OTP. Please try again.");
+      } finally {
+        setEnteredOtp("");
+      }
+    };    
+    
+    const checkDonationCompletion = async (requestId) => {
+      try {
+        const requestRef = doc(db, "requests", requestId);
+        const requestDoc = await getDoc(requestRef);
+        
+        if (requestDoc.exists()) {
+          const requestData = requestDoc.data();
+          const unitsNeeded = parseInt(requestData.UnitsNeeded);
+          const unitsDonated = parseInt(requestData.UnitsDonated || 0);
+          
+          if (unitsDonated >= unitsNeeded && requestData.Verified !== 'completed') {
+            await updateDoc(requestRef, {
+              Verified: "completed"
+            });
+            return "completed";
+          }
+          return requestData.Verified;
+        }
+        return null;
+      } catch (error) {
+        console.error("Error checking donation completion:", error);
+        return null;
       }
     };
+
 
     const getStatusPill = () => {
         if (donation.requesterOtpVerified) {
