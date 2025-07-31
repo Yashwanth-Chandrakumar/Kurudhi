@@ -1424,7 +1424,11 @@ export default function AdminDashboard() {
 
         {/* Details Modal */}
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent
+            className={
+              `sm:max-w-[600px] ${showCreatedBy ? 'max-h-[80vh] overflow-y-auto' : ''}`
+            }
+          >
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold">
                 {modalType === 'request' ? 'Request Details' : 
