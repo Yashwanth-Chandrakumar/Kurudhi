@@ -118,6 +118,11 @@ export default function AdminDashboard() {
   const [rejectionDetails, setRejectionDetails] = useState([])
   const [loadingRejectionDetails, setLoadingRejectionDetails] = useState(false)
 
+  // Add state for Created By details
+  const [createdByInfo, setCreatedByInfo] = useState(null)
+  const [showCreatedBy, setShowCreatedBy] = useState(false)
+  const [loadingCreatedBy, setLoadingCreatedBy] = useState(false)
+
   // Function to export current section data to Excel
   const handleExport = () => {
     let rows = [];
@@ -485,7 +490,42 @@ export default function AdminDashboard() {
   const openDetailsModal = (item, type) => {
     setSelectedItem(item)
     setModalType(type)
+    // reset Created By section each time modal opens
+    setShowCreatedBy(false)
+    setCreatedByInfo(null)
     setIsModalOpen(true)
+  }
+
+  // Toggle display of "Created By" information for a request
+  const handleToggleCreatedBy = async (uuid) => {
+    if (showCreatedBy) {
+      // if already visible, simply hide it
+      setShowCreatedBy(false)
+      return
+    }
+    try {
+      setLoadingCreatedBy(true)
+      // Fetch corresponding user to get email
+      const userSnap = await getDoc(doc(db, 'users', uuid))
+      if (userSnap.exists()) {
+        const userData = userSnap.data()
+        const email = userData.email || userData.Email
+        if (email) {
+          // Fetch donor info using email
+          const donorQuery = query(collection(db, 'donors'), where('Email', '==', email))
+          const donorSnap = await getDocs(donorQuery)
+          if (!donorSnap.empty) {
+            setCreatedByInfo(donorSnap.docs[0].data())
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching Created By info:', err)
+      toast.error('Failed to load creator info')
+    } finally {
+      setLoadingCreatedBy(false)
+      setShowCreatedBy(true)
+    }
   }
 
   // Handle sidebar clicks (mobile and desktop)
@@ -1458,6 +1498,45 @@ export default function AdminDashboard() {
                           <p className="capitalize">{selectedItem.EmergencyLevel}</p>
                         </div>
                       )}
+                      {/* Created By Toggle */}
+                      <div className="col-span-2">
+                        <Button
+                          variant="outline"
+                          className="mt-4"
+                          onClick={() => handleToggleCreatedBy(selectedItem.uuid)}
+                        >
+                          {showCreatedBy ? 'Hide Creator Info' : 'Created By'}
+                        </Button>
+
+                        {showCreatedBy && (
+                          <div className="mt-4">
+                            {loadingCreatedBy ? (
+                              <p>Loading...</p>
+                            ) : createdByInfo ? (
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <p className="font-semibold">Name</p>
+                                  <p>{createdByInfo.Name}</p>
+                                </div>
+                                <div>
+                                  <p className="font-semibold">Email</p>
+                                  <p>{createdByInfo.Email}</p>
+                                </div>
+                                <div>
+                                  <p className="font-semibold">Blood Group</p>
+                                  <p>{createdByInfo.BloodGroup}</p>
+                                </div>
+                                <div>
+                                  <p className="font-semibold">Gender</p>
+                                  <p>{createdByInfo.Gender}</p>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-gray-600">No creator information found.</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ) : modalType === 'donor' ? (
                     <div className="grid grid-cols-2 gap-4">
