@@ -107,10 +107,9 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col bg-white">
       <Navbar />
-
       <main className="flex-grow">
         {/* Hero Section */}
-        <section className="relative flex items-center justify-center bg-red-800 h-screen pt-32 sm:pt-28 md:pt-0">
+        <section className="relative flex items-center justify-center bg-red-800 h-screen">
           <div className="absolute inset-0">
             {/* Background image can be enabled if desired */}
             {/* <img 
@@ -122,7 +121,7 @@ export default function Home() {
           </div>
           <div className="relative z-10 container mx-auto px-4 flex flex-col md:flex-row items-center justify-between">
             <div className="md:w-1/2 text-center md:text-left">
-              <h1 className="text-3xl sm:text-4xl md:text-7xl font-bold text-white mb-6 animate-slide-in">
+              <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 animate-slide-in">
                 Every Drop <br /> of Blood <span className="text-red-300">Counts</span>
               </h1>
               <p className="text-xl md:text-2xl text-white mb-8">

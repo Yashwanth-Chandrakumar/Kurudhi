@@ -121,8 +121,8 @@ const Navbar = () => {
           <div className="flex-shrink-0 flex items-center">
             <Link href="/" className="flex items-center">
               {/* Replace "/kk.png" with your logo image */}
-              <img src="/kk.png" alt="Logo" className="h-16 md:h-36 w-auto" />
-              <img src="/rot1.png" alt="Logo" className="h-8 md:h-12 w-auto" />
+              <img src="/kk.png" alt="Logo" className="h-36 w-auto" />
+              <img src="/rot1.png" alt="Logo" className="h-12 w-auto" />
             </Link>
           </div>
 

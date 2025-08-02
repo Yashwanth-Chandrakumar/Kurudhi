@@ -197,6 +197,10 @@ export default function SuperAdminDashboard() {
 
   // Search state for Manage Admins
   const [searchQuery, setSearchQuery] = useState('')
+  // State for Created By info
+  const [createdByInfo, setCreatedByInfo] = useState(null)
+  const [showCreatedBy, setShowCreatedBy] = useState(false)
+  const [loadingCreatedBy, setLoadingCreatedBy] = useState(false)
 
   // Mobile sidebar state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -562,12 +566,48 @@ export default function SuperAdminDashboard() {
 
   // Open details modal for any item
   const openDetailsModal = (item, type) => {
-    setSelectedItem(item)
-    setModalType(type)
-    setIsModalOpen(true)
+    setSelectedItem(item);
+    setModalType(type);
+    // Reset creator info section every time modal opens
+    setShowCreatedBy(false);
+    setCreatedByInfo(null);
+    setIsModalOpen(true);
+
     if (type === 'donor') {
-      setEditedDonorData(item)
-      setSameAsPermanent(item.PermanentCity === item.ResidentCity)
+      setEditedDonorData(item);
+      setSameAsPermanent(item.PermanentCity === item.ResidentCity);
+    }
+  }
+
+  // Toggle display of "Created By" information for a request
+  const handleToggleCreatedBy = async (uuid) => {
+    if (showCreatedBy) {
+      // If already visible, simply hide it
+      setShowCreatedBy(false);
+      return;
+    }
+    try {
+      setLoadingCreatedBy(true);
+      // Fetch corresponding user to get email
+      const userSnap = await getDoc(doc(db, 'users', uuid));
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        const email = userData.email || userData.Email;
+        if (email) {
+          // Fetch donor info using email
+          const donorQuery = query(collection(db, 'donors'), where('Email', '==', email));
+          const donorSnap = await getDocs(donorQuery);
+          if (!donorSnap.empty) {
+            setCreatedByInfo(donorSnap.docs[0].data());
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching Created By info:', err);
+      toast.error('Failed to load creator info');
+    } finally {
+      setLoadingCreatedBy(false);
+      setShowCreatedBy(true);
     }
   }
 
@@ -2099,7 +2139,8 @@ export default function SuperAdminDashboard() {
             <div className="p-6">
               {selectedItem && (
                 <div className="space-y-4 mt-4">
-                  {modalType === 'request' ? (
+                  {modalType === 'request' ? ( <>
+
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="font-semibold">Attender Mobile</p>
@@ -2164,7 +2205,47 @@ export default function SuperAdminDashboard() {
                         </div>
                       )}
                     </div>
-                  ) : modalType === 'donor' ? (
+
+                      {/* Created By toggle button */}
+                      <Button
+                        variant="outline"
+                        className="mt-4"
+                        onClick={() => handleToggleCreatedBy(selectedItem.uuid)}
+                      >
+                        {showCreatedBy ? 'Hide Creator Info' : 'Created By'}
+                      </Button>
+
+                      {/* Creator information section */}
+                      {showCreatedBy && (
+                        <div className="mt-4">
+                          {loadingCreatedBy ? (
+                            <p>Loading...</p>
+                          ) : createdByInfo ? (
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <p className="font-semibold">Name</p>
+                                <p>{createdByInfo.Name}</p>
+                              </div>
+                              <div>
+                                <p className="font-semibold">Email</p>
+                                <p>{createdByInfo.Email}</p>
+                              </div>
+                              <div>
+                                <p className="font-semibold">Blood Group</p>
+                                <p>{createdByInfo.BloodGroup}</p>
+                              </div>
+                              <div>
+                                <p className="font-semibold">Gender</p>
+                                <p>{createdByInfo.Gender}</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-gray-600">No creator information found.</p>
+                          )}
+                        </div>
+                      )}
+
+                    </> ) : modalType === 'donor' ? (
                     <div className="space-y-6">
                       <div className="flex justify-between items-center">
                         {!isEditing ? (
