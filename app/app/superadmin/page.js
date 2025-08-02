@@ -2578,7 +2578,7 @@ export default function SuperAdminDashboard() {
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">OTP Status</p>
-                          <div className="flex space-x-2">
+                          <div className="flex space-x-2 mb-2">
                             <span className={`px-2 py-0.5 rounded-full text-xs ${
                               donation.requesterOtpVerified ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                             }`}>
@@ -2589,6 +2589,16 @@ export default function SuperAdminDashboard() {
                             }`}>
                               Donor: {donation.donorOtpVerified ? 'Verified' : 'Pending'}
                             </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm text-gray-500">Requester OTP</p>
+                              <p className="font-medium">{donation.requesterOtp || 'Not generated'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-500">Donor OTP</p>
+                              <p className="font-medium">{donation.donorOtp || 'Not generated'}</p>
+                            </div>
                           </div>
                         </div>
                       </div>
