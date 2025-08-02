@@ -117,11 +117,7 @@ export default function About() {
       {/* Hero Section */}
       <section className="relative bg-gradient-to-r from-red-800 to-red-600 text-white py-20">
         <div className="absolute inset-0">
-          <img 
-            src="/api/placeholder/1600/900" 
-            alt="About Us Background" 
-            className="w-full h-full object-cover opacity-30"
-          />
+          
           <div className="absolute inset-0 bg-red-900 opacity-70"></div>
         </div>
         <div className="relative container mx-auto px-4 text-center">
