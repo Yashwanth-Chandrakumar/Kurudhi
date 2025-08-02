@@ -1139,18 +1139,18 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4">{request.PatientName}</td>
                       <td className="px-6 py-4">{request.BloodGroup}</td>
                       <td className="px-6 py-4">{request.Hospital}</td>
-                      <td className="px-6 py-4 space-x-2">
+                      <td className="px-6 py-4 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                         {request.Verified === "received" && (
                           <>
-                            <Button onClick={() => handleConfirmAction(request.id, 'accepted')} className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition">
+                            <Button onClick={() => handleConfirmAction(request.id, 'accepted')} className="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition">
                               Accept
                             </Button>
-                            <Button onClick={() => handleConfirmAction(request.id, 'rejected')} className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition">
+                            <Button onClick={() => handleConfirmAction(request.id, 'rejected')} className="w-full sm:w-auto bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition">
                               Reject
                             </Button>
                           </>
                         )}
-                        <Button onClick={() => openDetailsModal(request, 'request')} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition">
+                        <Button onClick={() => openDetailsModal(request, 'request')} className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition">
                           More
                         </Button>
                         {(request.Verified === "accepted" || request.Verified === "completed") && (
@@ -1336,7 +1336,7 @@ export default function AdminDashboard() {
               </DialogTitle>
             </DialogHeader>
             <p>{confirmModal.message}</p>
-            <div className="mt-4 flex justify-end space-x-2">
+            <div className="mt-4 flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
               <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
                 Cancel
               </Button>
