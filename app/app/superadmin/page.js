@@ -1210,7 +1210,7 @@ export default function SuperAdminDashboard() {
 
       {/* Main Content - Update title to include Users */}
       <div className="flex-1 p-6 md:p-10">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between space-y-4 md:space-y-0 mb-8">
           <h1 className="text-3xl font-bold text-gray-800">
             {activeTab === 'requests'
               ? 'Blood Requests'
@@ -1234,7 +1234,7 @@ export default function SuperAdminDashboard() {
 
         {/* Sub-tabs for Requests */}
         {activeTab === 'requests' && (
-          <div className="mb-4 flex space-x-4">
+          <div className="mb-4 flex flex-wrap gap-2">
             {[
               { label: 'Current', value: 'received' },
               { label: 'Ongoing', value: 'accepted' },
@@ -1257,7 +1257,7 @@ export default function SuperAdminDashboard() {
 
         {/* Sub-tabs for Camps */}
         {activeTab === 'camps' && (
-          <div className="mb-4 flex space-x-4">
+          <div className="mb-4 flex flex-wrap gap-2">
             {[
               { label: 'All Camps', value: 'all' },
               { label: 'Upcoming', value: 'upcoming' },
@@ -1297,7 +1297,7 @@ export default function SuperAdminDashboard() {
                       <td className="px-6 py-4">{request.BloodGroup}</td>
                       <td className="px-6 py-4">{request.Hospital}</td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                           {request.Verified === "received" && (
                             <>
                               <Button onClick={() => handleConfirmAction(request.id, 'accepted')} className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition">
@@ -3053,7 +3053,7 @@ export default function SuperAdminDashboard() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   <Checkbox
                     id="anyBloodGroupAccepted"
                     checked={editedRequestData.AnyBloodGroupAccepted || false}
