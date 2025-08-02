@@ -29,7 +29,7 @@ const OurTeamPage = () => {
     },
     {
       name: "Rtr. Dharshini Shri D",
-      position: "Committee Member",
+      position: "Blood Donor Cell - Committee Member",
       bgColor: "bg-pink-100",
       image: "/Dharshini.jpeg" // Placeholder image
     },
