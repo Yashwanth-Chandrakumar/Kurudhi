@@ -15,7 +15,7 @@ import {
 import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CryptoJS from 'crypto-js';
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApp, getApps } from 'firebase/app';
 import { addDoc, collection, getFirestore } from 'firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
 
@@ -38,13 +38,13 @@ const tamilNaduCities = [
 ];
 
 const firebaseConfig = {
-    apiKey: "AIzaSyD1n55zOb5xCWp3jS1mPRTwGWYx90rAzWE",
-    authDomain: "kurudhi-3aec8.firebaseapp.com",
-    projectId: "kurudhi-3aec8",
-    storageBucket: "kurudhi-3aec8.firebasestorage.app",
-    messagingSenderId: "936520747934",
-    appId: "1:936520747934:web:c17cc5b4aa7ce54ca2248f",
-    measurementId: "G-N7JGJTRDE7"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
   };
 
 // Validation rules
@@ -269,7 +269,7 @@ export const RequestDonor = () => {
   const [touched, setTouched] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const app = initializeApp(firebaseConfig);
+  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
   const db = getFirestore(app);
   const steps = ['Patient Details', 'Medical Info', 'Contact Details', 'Review & Confirm'];
 

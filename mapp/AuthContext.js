@@ -31,15 +31,7 @@ export const AuthProvider = ({ children }) => {
     // Send verification email
     await sendEmailVerification(user);
 
-    // Save additional user data to Firestore
-    await setDoc(doc(db, "users", user.uid), {
-      firstName,
-      lastName,
-      dob,
-      email,
-      uid: user.uid
-    });
-
+    // Do not save user details at signup. They will be saved after first successful login.
     return userCredential;
   };
 

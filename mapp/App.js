@@ -11,6 +11,7 @@ import { RequestDonor } from './pages/needdonor';
 import MainLayout from './components/MainLayout';
 import MyRequestsPage from './pages/myrequests';
 import ProfilePage from './pages/profile';
+import BecomeDonor from './pages/newdonor';
 
 const Stack = createStackNavigator();
 
@@ -47,6 +48,13 @@ function AppNavigator() {
               {props => (
                 <MainLayout {...props}>
                   <ProfilePage {...props} />
+                </MainLayout>
+              )}
+            </Stack.Screen>
+            <Stack.Screen name="NewDonor" options={{ headerShown: false }}>
+              {props => (
+                <MainLayout {...props}>
+                  <BecomeDonor {...props} />
                 </MainLayout>
               )}
             </Stack.Screen>

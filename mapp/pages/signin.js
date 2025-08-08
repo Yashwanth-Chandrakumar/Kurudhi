@@ -1,5 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { View, TextInput, Text, StyleSheet, Pressable, TouchableOpacity } from 'react-native';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 import { AuthContext } from '../AuthContext';
 
 export default function SignIn({ navigation }) {
@@ -8,11 +10,28 @@ export default function SignIn({ navigation }) {
   const [error, setError] = useState('');
   const { signIn } = useContext(AuthContext);
 
+  // Add user to Firestore if not already present
+  const checkAndAddUser = async (user) => {
+    const uid = user.uid;
+    const userDocRef = doc(db, 'users', uid);
+    const userDocSnap = await getDoc(userDocRef);
+    if (!userDocSnap.exists()) {
+      await setDoc(userDocRef, {
+        uid,
+        email: user.email,
+        role: 'user',
+      });
+    }
+  };
+
   const handleSignIn = async () => {
     try {
       setError('');
-      await signIn(email, password);
-      console.log("Sign in pressed");
+      const userCredential = await signIn(email, password);
+      // Ensure user document exists
+      await checkAndAddUser(userCredential.user);
+      // Navigate to dashboard/home screen
+      navigation.navigate('home');
     } catch (err) {
       setError(err.message);
     }
