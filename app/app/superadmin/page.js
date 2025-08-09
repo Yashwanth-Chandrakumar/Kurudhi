@@ -1035,13 +1035,13 @@ export default function SuperAdminDashboard() {
   const handleConfirmDeleteRequest = async () => {
     if (!requestToDelete) return;
     try {
-      await deleteDoc(doc(db, 'requests', requestToDelete.id));
-      toast.success('Request deleted successfully');
+      await updateRequestStatus(requestToDelete.id, 'rejected');
+      toast.success('Request rejected successfully');
       setIsDeleteRequestConfirmOpen(false);
       setRequestToDelete(null);
     } catch (error) {
-      console.error('Error deleting request:', error);
-      toast.error('Failed to delete request.');
+      console.error('Error rejecting request:', error);
+      toast.error('Failed to reject request.');
     }
   };
 
@@ -1391,9 +1391,9 @@ export default function SuperAdminDashboard() {
                               </Button>
                               <Button
                                 onClick={() => handleDeleteRequestClick(request)}
-                                className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded transition"
+                                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition"
                               >
-                                Delete
+                                Reject
                               </Button>
                             </>
                           )}
@@ -3223,18 +3223,18 @@ export default function SuperAdminDashboard() {
           </DialogContent>
         </Dialog>
 
-        {/* Delete Request Confirmation Modal */}
+        {/* Reject Request Confirmation Modal */}
         <Dialog open={isDeleteRequestConfirmOpen} onOpenChange={setIsDeleteRequestConfirmOpen}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Are you sure?</DialogTitle>
+                    <DialogTitle>Confirm Rejection</DialogTitle>
                     <DialogDescription>
-                        This action cannot be undone. This will permanently delete the request record.
+                        Are you sure you want to reject this request? This will update the request's status to 'rejected'.
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setIsDeleteRequestConfirmOpen(false)}>Cancel</Button>
-                    <Button variant="destructive" onClick={handleConfirmDeleteRequest}>Confirm Delete</Button>
+                    <Button variant="destructive" onClick={handleConfirmDeleteRequest}>Reject</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
