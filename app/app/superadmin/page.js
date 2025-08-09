@@ -1032,6 +1032,10 @@ export default function SuperAdminDashboard() {
   };
 
   // Function to handle the confirmed deletion of a request
+  const handleMarkAsCompleted = (request) => {
+    updateRequestStatus(request.id, 'completed');
+  };
+
   const handleConfirmDeleteRequest = async () => {
     if (!requestToDelete) return;
     try {
@@ -1380,9 +1384,15 @@ export default function SuperAdminDashboard() {
                               Cancelled Donors
                             </Button>
                           )}
-                          {/* Add Edit and Delete buttons for ongoing requests */}
+                          {/* Add Edit, Reject, and Completed buttons for ongoing requests */}
                           {request.Verified === "accepted" && (
                             <>
+                              <Button
+                                onClick={() => handleMarkAsCompleted(request)}
+                                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition"
+                              >
+                                Completed
+                              </Button>
                               <Button
                                 onClick={() => handleEditRequestClick(request)}
                                 className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded transition"
