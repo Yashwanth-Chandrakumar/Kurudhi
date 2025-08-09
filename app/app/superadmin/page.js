@@ -454,6 +454,7 @@ export default function SuperAdminDashboard() {
       
       await updateDoc(requestRef, updateData)
       toast.success(`Request ${status} successfully`)
+      fetchRequests(); // Re-fetch requests to update the UI
     } catch (error) {
       console.error('Error updating request:', error)
       toast.error('Failed to update request')
